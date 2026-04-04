@@ -21,23 +21,23 @@ const sourceBadgeColors: Record<string, string> = {
 const DiscoveryCard = ({ gift, index, isSaved, isInCart, onSave, onAddToCart }: DiscoveryCardProps) => {
   const [expanded, setExpanded] = useState(false);
 
+  const badgeColor = sourceBadgeColors[gift.source] || 'bg-secondary text-muted-foreground border-gold/20';
+
   return (
     <div
       className={`parchment-card rounded-lg overflow-hidden card-appear ${
         isSaved ? 'ring-1 ring-gold/50' : ''
       } ${isInCart ? '!bg-navy border-gold/60' : ''}`}
-      style={{ animationDelay: `${index * 0.1}s` }}
+      style={{ animationDelay: `${index * 0.15}s` }}
     >
       <div className="p-4 space-y-3">
         {/* Header */}
         <div className="flex items-start justify-between">
-          <div className="flex items-center gap-2">
-            <span className="px-2 py-0.5 rounded-full text-xs font-cinzel bg-gold/20 text-gold-dark border border-gold/30"
-              title={`${gift.matchPercent}% match based on personality analysis`}>
-              {gift.matchPercent}%
-            </span>
-          </div>
-          <span className={`px-2 py-0.5 rounded-full text-[10px] border ${sourceBadgeColors[gift.source]}`}>
+          <span className="px-2 py-0.5 rounded-full text-xs font-cinzel bg-gold/20 text-gold-dark border border-gold/30"
+            title={`${gift.matchPercent}% alchemy match`}>
+            {gift.matchPercent}%
+          </span>
+          <span className={`px-2 py-0.5 rounded-full text-[10px] border ${badgeColor}`}>
             {gift.source}
           </span>
         </div>
@@ -92,8 +92,18 @@ const DiscoveryCard = ({ gift, index, isSaved, isInCart, onSave, onAddToCart }: 
                 : 'border-card-foreground/20 text-card-foreground/60 hover:border-gold hover:text-gold-dark'
             }`}
           >
-            {isInCart ? '✓ In Quest Cart' : '🛒 Add to Cart'}
+            {isInCart ? '✓ In Cart' : '🛒 Add to Cart'}
           </button>
+          {gift.url && gift.url !== '#' && (
+            <a
+              href={gift.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs font-crimson px-3 py-1.5 rounded-md border border-card-foreground/20 text-card-foreground/60 hover:border-gold hover:text-gold-dark transition-all duration-250"
+            >
+              View →
+            </a>
+          )}
         </div>
       </div>
     </div>
