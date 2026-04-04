@@ -19,8 +19,17 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-    const systemPrompt = `You are a personality analyst for a gift recommendation engine called GiftAlchemy. 
+    const systemPrompt = `You are a personality analyst for a gift recommendation engine called GiftAlchemy.
 Given a conversation or bio text about/from a person, extract personality traits, quirks, hobbies, and generate a "Gift DNA" profile.
+
+IMPORTANT: The text may be a chat export (WhatsApp, iMessage, etc.) with multiple participants. 
+- Messages from "${name}" (the gift RECIPIENT) are what matter most — analyze THEIR personality.
+- Messages from other people provide context but the focus is on "${name}".
+- Common chat export formats:
+  - WhatsApp: "[date, time] Name: message" or "Name: message"  
+  - iMessage/generic: "Name: message"
+  - If no names are labeled, assume it's a two-person conversation and infer which speaker is "${name}" based on context.
+- Pay attention to: what ${name} talks about, their humor, interests, complaints, hobbies, vocabulary, emoji usage, energy levels, and personality quirks.
 
 You MUST call the extract_profile function with your analysis.`;
 
@@ -34,7 +43,7 @@ You MUST call the extract_profile function with your analysis.`;
         model: "google/gemini-3-flash-preview",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: `Analyze this conversation/text about a person named "${name}" and extract their personality profile for gift recommendations:\n\n${text}` },
+          { role: "user", content: `Analyze this conversation/text to build a gift personality profile for "${name}". Focus specifically on what ${name} says and reveals about themselves:\n\n${text}` },
         ],
         tools: [{
           type: "function",
@@ -45,39 +54,31 @@ You MUST call the extract_profile function with your analysis.`;
               type: "object",
               properties: {
                 traits: {
-                  type: "array",
-                  items: { type: "string" },
+                  type: "array", items: { type: "string" },
                   description: "Personality trait IDs from: coffee, bookworm, adventurer, chef, tech, nightowl, creative, gamer, wellness, traveler"
                 },
                 quirks: {
-                  type: "array",
-                  items: { type: "string" },
+                  type: "array", items: { type: "string" },
                   description: "Quirk IDs from: mornings, late, overthinker, chaotic, researcher, bougie, dramatic, introvert"
                 },
                 hobbies: {
-                  type: "array",
-                  items: { type: "string" },
+                  type: "array", items: { type: "string" },
                   description: "Hobby IDs from: truecrime, binge, gym, garden, wine, shopping, music, puzzles"
                 },
                 dnaScores: {
                   type: "object",
                   properties: {
-                    sentimental: { type: "number", description: "0-100 score" },
-                    practical: { type: "number", description: "0-100 score" },
-                    adventurous: { type: "number", description: "0-100 score" },
-                    luxurious: { type: "number", description: "0-100 score" },
-                    quirky: { type: "number", description: "0-100 score" },
+                    sentimental: { type: "number" }, practical: { type: "number" },
+                    adventurous: { type: "number" }, luxurious: { type: "number" },
+                    quirky: { type: "number" },
                   },
                   required: ["sentimental", "practical", "adventurous", "luxurious", "quirky"],
                 },
                 summary: {
                   type: "string",
-                  description: "One witty sentence describing this person's gift personality, e.g. 'Alex is a caffeine-dependent amateur detective who treats mornings as a personal enemy.'"
+                  description: "One witty sentence describing this person's gift personality"
                 },
-                signalCount: {
-                  type: "number",
-                  description: "Number of distinct personality signals detected in the text"
-                }
+                signalCount: { type: "number", description: "Number of distinct personality signals detected" }
               },
               required: ["traits", "quirks", "hobbies", "dnaScores", "summary", "signalCount"],
               additionalProperties: false,
@@ -90,18 +91,8 @@ You MUST call the extract_profile function with your analysis.`;
 
     if (!response.ok) {
       const status = response.status;
-      if (status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limited, please try again shortly." }), {
-          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted." }), {
-          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      const errText = await response.text();
-      console.error("AI gateway error:", status, errText);
+      if (status === 429) return new Response(JSON.stringify({ error: "Rate limited, please try again shortly." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (status === 402) return new Response(JSON.stringify({ error: "AI credits exhausted." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       throw new Error(`AI gateway error: ${status}`);
     }
 
