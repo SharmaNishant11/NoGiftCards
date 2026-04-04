@@ -1,8 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { QuestStatusResponse, Discovery, MapNode } from '@/types';
 
-// Map node definitions
 const MAP_NODES_TEMPLATE: { id: string; emoji: string; label: string; key: string }[] = [
   { id: '1', emoji: '🏰', label: 'Base Camp', key: 'base' },
   { id: '2', emoji: '🌿', label: 'Etsy Forest', key: 'etsy' },
@@ -22,23 +20,15 @@ export function useQuestPolling(questId: string | null) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const prevDiscCountRef = useRef(0);
 
   const pollStatus = useCallback(async () => {
     if (!questId) return;
 
     try {
-      const { data, error: fetchErr } = await supabase.functions.invoke('quest-status', {
-        body: null,
-        method: 'GET',
-      });
-
-      // Use query params approach - invoke with GET doesn't support query params well
-      // So we'll use fetch directly
       const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/quest-status?questId=${questId}`;
       const response = await fetch(url, {
-        headers: {
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-        },
+        headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
       });
 
       if (!response.ok) throw new Error('Failed to fetch quest status');
@@ -47,42 +37,33 @@ export function useQuestPolling(questId: string | null) {
       setStatus(statusData);
       setError(null);
 
-      // Update thoughts from messages
       if (statusData.messages) {
         setThoughts(statusData.messages.map(m => m.summary));
       }
 
-      // Update map nodes based on visited/current
       const visited = new Set(statusData.visitedNodes || []);
       const current = statusData.currentNode;
 
       setMapNodes(MAP_NODES_TEMPLATE.map(n => ({
-        id: n.id,
-        emoji: n.emoji,
-        label: n.label,
-        status: visited.has(n.key) && n.key !== current
-          ? 'visited' as const
-          : n.key === current
-            ? 'active' as const
-            : 'queued' as const,
+        id: n.id, emoji: n.emoji, label: n.label,
+        status: visited.has(n.key) && n.key !== current ? 'visited' as const
+          : n.key === current ? 'active' as const : 'queued' as const,
       })));
 
       // Fetch discoveries
       const discUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-discoveries?questId=${questId}`;
       const discResp = await fetch(discUrl, {
-        headers: {
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-        },
+        headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
       });
 
       if (discResp.ok) {
         const discData = await discResp.json();
-        setDiscoveries(discData.discoveries || []);
+        const newDisc = discData.discoveries || [];
+        setDiscoveries(newDisc);
       }
 
       setLoading(false);
 
-      // Stop polling when complete or error
       if (statusData.status === 'complete' || statusData.status === 'error') {
         if (intervalRef.current) {
           clearInterval(intervalRef.current);
@@ -99,29 +80,36 @@ export function useQuestPolling(questId: string | null) {
   useEffect(() => {
     if (!questId) return;
 
-    // Initial fetch
     pollStatus();
-
-    // Poll every 3 seconds
     intervalRef.current = setInterval(pollStatus, 3000);
 
-    return () => {
+    // Client-side safety timeout: stop polling after 12 minutes
+    const safetyTimeout = setTimeout(() => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
+        intervalRef.current = null;
       }
+      setStatus(prev => prev ? { ...prev, status: 'complete' } : prev);
+    }, 12 * 60 * 1000);
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      clearTimeout(safetyTimeout);
     };
   }, [questId, pollStatus]);
 
   const redirect = useCallback(async (message: string) => {
     if (!questId) return;
-
     try {
-      const { data, error } = await supabase.functions.invoke('redirect-quest', {
-        body: { questId, message },
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/redirect-quest`;
+      await fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ questId, message }),
       });
-
-      if (error) throw error;
-      // Add redirect message locally immediately
       setThoughts(prev => [...prev, `> Redirecting: ${message}...`]);
     } catch (e) {
       console.error('Redirect error:', e);

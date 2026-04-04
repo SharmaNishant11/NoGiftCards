@@ -27,7 +27,6 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Build the traits description for the agent
     const traitNames = [...(profile.personalities || []), ...(profile.quirks || []), ...(profile.hobbies || [])];
     const traitDesc = traitNames.join(", ") || "no specific traits";
     const budget = profile.budget || 50;
@@ -35,7 +34,6 @@ serve(async (req) => {
     const notes = profile.notes || "";
     const claudeSummary = profile.claudeSummary || "";
 
-    // Craft a detailed Browser Use task prompt
     const taskPrompt = `You are a gift-finding agent for GiftAlchemy. Find 6-8 unique, personalized gift ideas for a person with these characteristics:
 
 Name: ${profile.name}
@@ -46,31 +44,32 @@ Budget: $${budget} (find gifts ranging from $${Math.round(budget * 0.3)} to $${M
 Occasion: ${occasion}
 
 INSTRUCTIONS:
-1. First, search Etsy.com for 2-3 unique handmade/artisan gifts matching this personality. Search for specific terms related to their interests.
-2. Then search Amazon.com for 2-3 gifts. Look for well-reviewed products that match their interests.
-3. Then search 1-2 specialty/niche stores relevant to their interests (e.g. uncommongoods.com, food52.com, etc.)
+1. Search Etsy.com for 2-3 unique handmade/artisan gifts matching this personality.
+2. Search Amazon.com for 2-3 gifts. Look for well-reviewed products.
+3. Search 1-2 specialty/niche stores (uncommongoods.com, food52.com, etc.)
 
-For EACH gift found, extract:
-- The exact product name
-- The price (in USD)
-- The full product URL (the actual link to buy)
-- The store/site name (e.g. "Etsy", "Amazon", "Uncommon Goods")
-- A one-sentence reason why this person would love it
+CRITICAL REQUIREMENTS:
+- Visit EACH product page to verify the EXACT price shown on the page.
+- If a product has multiple options (colors, sizes, flavors), note which specific option you recommend and confirm the price for THAT option.
+- The price you report MUST match what's shown on the product page for the selected option.
+- Copy the EXACT product URL from the browser address bar.
 
-Return your findings as a JSON array like this:
+After finding EACH gift, immediately output it as a JSON array so results appear incrementally.
+
+Format your findings as a JSON array. After visiting each store, output what you've found so far:
 [
   {
-    "name": "Product Name",
+    "name": "Product Name (specific option if applicable)",
     "price": 42.99,
-    "url": "https://www.etsy.com/listing/...",
+    "url": "https://exact-product-url",
     "site": "Etsy",
-    "reason": "Perfect for a coffee lover who hates mornings"
+    "reason": "Perfect for a coffee lover who hates mornings",
+    "selected_option": "Color: Midnight Blue, Size: Large"
   }
 ]
 
-IMPORTANT: Only return REAL products with REAL URLs that actually exist. Visit each product page to verify the price and URL. Focus on unique, thoughtful gifts — not generic items.`;
+IMPORTANT: Only return REAL products with REAL URLs. Visit each product page to verify price and URL. Focus on unique, thoughtful gifts.`;
 
-    // Start Browser Use session
     const buResponse = await fetch(`${BROWSER_USE_API}/sessions`, {
       method: "POST",
       headers: {
@@ -89,7 +88,6 @@ IMPORTANT: Only return REAL products with REAL URLs that actually exist. Visit e
     const buSession = await buResponse.json();
     console.log("Browser Use session created:", JSON.stringify(buSession));
 
-    // Create quest record in database
     const { data: quest, error: dbError } = await supabase
       .from("quests")
       .insert({
@@ -105,7 +103,6 @@ IMPORTANT: Only return REAL products with REAL URLs that actually exist. Visit e
 
     if (dbError) throw dbError;
 
-    // Insert initial thought message
     await supabase.from("quest_messages").insert({
       quest_id: quest.id,
       role: "system",
