@@ -13,6 +13,9 @@ export interface RecipientProfile {
   budget: number;
   occasion: string;
   deliveryDate: string;
+  claudeSummary?: string;
+  dnaScores?: GiftDNA;
+  signalCount?: number;
 }
 
 export interface GiftDNA {
@@ -34,11 +37,12 @@ export interface GiftCard {
   id: string;
   name: string;
   emoji: string;
-  source: 'Etsy' | 'Amazon' | 'Specialty' | 'Niche';
+  source: string;
   price: string;
   priceValue: number;
   matchPercent: number;
   reason: string;
+  url: string;
   scores: AlchemyScore;
 }
 
@@ -63,3 +67,38 @@ export interface MapNode {
 }
 
 export type WizardStep = 1 | 2 | 3 | 4;
+
+export interface QuestStatusResponse {
+  questId: string;
+  status: 'pending' | 'running' | 'complete' | 'error';
+  currentNode: string;
+  visitedNodes: string[];
+  liveUrl: string | null;
+  messages: QuestMessage[];
+  output?: string;
+}
+
+export interface QuestMessage {
+  id: string;
+  quest_id: string;
+  role: string;
+  summary: string;
+  created_at: string;
+}
+
+export interface Discovery {
+  id: string;
+  quest_id: string;
+  name: string;
+  emoji: string;
+  site: string;
+  price: number;
+  url: string;
+  image_url?: string;
+  why_text: string;
+  alchemy_score: number;
+  sub_scores: AlchemyScore;
+  created_at: string;
+}
+
+export type ProfileMethod = 'conversation' | 'manual';

@@ -8,9 +8,9 @@ const stats = [
 ];
 
 const features = [
-  { emoji: '🧠', title: 'AI Personality Profiling', desc: 'We decode who they truly are' },
-  { emoji: '🗺️', title: 'Live Agent Adventure Map', desc: 'Watch the hunt happen in real time' },
-  { emoji: '💳', title: 'Seamless Gift Checkout', desc: 'From discovery to doorstep in one click' },
+  { emoji: '🧠', title: 'AI Reads Your People', desc: 'Paste a convo or bio. Our AI extracts who they really are.' },
+  { emoji: '🗺️', title: 'Watch the Hunt Live', desc: 'Real AI browser agents scour Etsy, Amazon and beyond in real time.' },
+  { emoji: '⚗️', title: 'Semantically Scored', desc: 'Every gift scored by actual AI analysis — not guesswork.' },
 ];
 
 const useCountUp = (target: number, duration: number = 2000) => {
@@ -45,7 +45,6 @@ const StatPill = ({ emoji, value, label, suffix = '' }: { emoji: string; value: 
   );
 };
 
-/* Sparkle particles */
 const Sparkles = () => (
   <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
     {Array.from({ length: 20 }).map((_, i) => (
@@ -73,9 +72,7 @@ const LandingPage = () => {
     <div className="relative min-h-screen overflow-hidden">
       <Sparkles />
 
-      {/* Hero */}
       <section className="relative z-10 flex flex-col items-center justify-center min-h-screen px-6 text-center page-enter">
-        {/* Logo */}
         <div className="text-7xl mb-6 gold-pulse">⚗️</div>
 
         <h1 className="font-cinzel text-4xl md:text-5xl text-gold leading-tight max-w-3xl">
@@ -83,7 +80,7 @@ const LandingPage = () => {
         </h1>
 
         <p className="font-crimson italic text-lg md:text-xl text-muted-foreground mt-4 max-w-xl leading-relaxed">
-          Our AI agents scour the web to find the most magical, personalized gifts — guided by your recipient's soul.
+          Paste a conversation. Drop a bio. Our AI reads between the lines and hunts the perfect gift — live, across the entire web.
         </p>
 
         <button
@@ -93,7 +90,6 @@ const LandingPage = () => {
           Begin the Quest →
         </button>
 
-        {/* Stats */}
         <div className="flex flex-wrap justify-center gap-4 mt-12">
           {stats.map((s, i) => (
             <StatPill key={i} {...s} />
@@ -101,7 +97,6 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* Features */}
       <section className="relative z-10 py-20 px-6">
         <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
           {features.map((f, i) => (
@@ -118,17 +113,15 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* Social proof */}
       <section className="relative z-10 py-10 text-center">
         <p className="font-crimson text-muted-foreground text-sm">
           Used by gift-givers at <span className="text-gold/70">Google</span> · <span className="text-gold/70">Etsy</span> · <span className="text-gold/70">Anthropic</span> · and more
         </p>
       </section>
 
-      {/* Footer */}
       <footer className="relative z-10 py-8 text-center border-t border-gold/10">
         <p className="font-crimson text-xs text-muted-foreground">
-          Powered by <span className="font-cinzel text-gold/50 tracking-wider">Browser Use</span> · <span className="font-cinzel text-gold/50 tracking-wider">ElevenLabs</span> · <span className="font-cinzel text-gold/50 tracking-wider">Anthropic</span> · <span className="font-cinzel text-gold/50 tracking-wider">Stripe</span>
+          Powered by <span className="font-cinzel text-gold/50 tracking-wider">Browser Use</span> · <span className="font-cinzel text-gold/50 tracking-wider">Gemini</span> · <span className="font-cinzel text-gold/50 tracking-wider">Lovable</span>
         </p>
       </footer>
     </div>

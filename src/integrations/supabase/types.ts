@@ -14,7 +14,127 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      discoveries: {
+        Row: {
+          alchemy_score: number | null
+          created_at: string | null
+          emoji: string | null
+          id: string
+          image_url: string | null
+          name: string
+          price: number
+          quest_id: string | null
+          site: string
+          sub_scores: Json | null
+          url: string
+          why_text: string | null
+        }
+        Insert: {
+          alchemy_score?: number | null
+          created_at?: string | null
+          emoji?: string | null
+          id?: string
+          image_url?: string | null
+          name: string
+          price: number
+          quest_id?: string | null
+          site: string
+          sub_scores?: Json | null
+          url: string
+          why_text?: string | null
+        }
+        Update: {
+          alchemy_score?: number | null
+          created_at?: string | null
+          emoji?: string | null
+          id?: string
+          image_url?: string | null
+          name?: string
+          price?: number
+          quest_id?: string | null
+          site?: string
+          sub_scores?: Json | null
+          url?: string
+          why_text?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "discoveries_quest_id_fkey"
+            columns: ["quest_id"]
+            isOneToOne: false
+            referencedRelation: "quests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quest_messages: {
+        Row: {
+          created_at: string | null
+          id: string
+          quest_id: string | null
+          role: string
+          summary: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          quest_id?: string | null
+          role: string
+          summary: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          quest_id?: string | null
+          role?: string
+          summary?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quest_messages_quest_id_fkey"
+            columns: ["quest_id"]
+            isOneToOne: false
+            referencedRelation: "quests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quests: {
+        Row: {
+          created_at: string | null
+          current_node: string | null
+          id: string
+          live_url: string | null
+          profile: Json
+          session_id: string | null
+          status: string | null
+          updated_at: string | null
+          visited_nodes: string[] | null
+        }
+        Insert: {
+          created_at?: string | null
+          current_node?: string | null
+          id?: string
+          live_url?: string | null
+          profile: Json
+          session_id?: string | null
+          status?: string | null
+          updated_at?: string | null
+          visited_nodes?: string[] | null
+        }
+        Update: {
+          created_at?: string | null
+          current_node?: string | null
+          id?: string
+          live_url?: string | null
+          profile?: Json
+          session_id?: string | null
+          status?: string | null
+          updated_at?: string | null
+          visited_nodes?: string[] | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
