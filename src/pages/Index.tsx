@@ -115,7 +115,7 @@ const LandingPage = () => {
 
       <section className="relative z-10 py-10 text-center">
         <p className="font-crimson text-muted-foreground text-sm">
-          Used by gift-givers at <span className="text-gold/70">Google</span> · <span className="text-gold/70">Etsy</span> · <span className="text-gold/70">Anthropic</span> · and more
+          Trusted by people who panic-Googled <span className="text-gold/70">"good gifts for someone who has everything"</span> at <span className="text-gold/70">2am</span>
         </p>
       </section>
 
