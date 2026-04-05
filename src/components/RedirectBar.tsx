@@ -16,7 +16,7 @@ const RedirectBar = ({ onRedirect, lastRedirect }: RedirectBarProps) => {
 
   return (
     <div className="space-y-2">
-      <h4 className="font-cinzel text-sm text-gold flex items-center gap-2">⚡ Redirect the Agent</h4>
+      <h4 className="font-cinzel text-sm text-gold flex items-center gap-2">📢 Yell At The AI</h4>
       <div className="flex gap-2">
         <input
           value={input}
