@@ -84,17 +84,15 @@ const ProfilePage = () => {
       if (error) throw error;
       if (data.error) throw new Error(data.error);
 
-      // Store quest data for the quest page
       sessionStorage.setItem('questProfile', JSON.stringify(profile));
       sessionStorage.setItem('questId', data.questId);
       if (data.liveUrl) sessionStorage.setItem('questLiveUrl', data.liveUrl);
 
-      toast.success('⚗️ Quest launched! The agents are hunting...');
+      toast.success('🏃 Agents deployed! They\'re already judging your friend\'s taste.');
       setTimeout(() => navigate('/quest'), 600);
     } catch (e) {
       console.error('Launch error:', e);
-      toast.error('Failed to launch quest. Falling back to demo mode.');
-      // Fallback to mock mode
+      toast.error('Failed to launch. Falling back to demo mode.');
       sessionStorage.setItem('questProfile', JSON.stringify(profile));
       sessionStorage.setItem('questId', 'mock');
       navigate('/quest');
@@ -116,7 +114,7 @@ const ProfilePage = () => {
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center gap-3 mb-8">
           <button onClick={() => navigate('/')} className="text-gold/50 hover:text-gold transition-colors font-cinzel text-sm">← Back</button>
-          <h1 className="font-cinzel text-2xl text-gold">Recipient Profiler</h1>
+          <h1 className="font-cinzel text-2xl text-gold">Tell Us About Your Victim</h1>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-[1fr,320px] gap-8">
@@ -128,13 +126,13 @@ const ProfilePage = () => {
                 onClick={() => setMethod('conversation')}
                 className={`flex-1 py-3 px-4 font-cinzel text-sm transition-all ${method === 'conversation' ? 'bg-gold/20 text-gold' : 'text-muted-foreground hover:text-foreground'}`}
               >
-                📝 Paste a Conversation
+                📱 Dump Their Texts
               </button>
               <button
                 onClick={() => setMethod('manual')}
                 className={`flex-1 py-3 px-4 font-cinzel text-sm transition-all ${method === 'manual' ? 'bg-gold/20 text-gold' : 'text-muted-foreground hover:text-foreground'}`}
               >
-                🔮 Manual Profile
+                🧠 I'll Describe Them Myself (Unreliably)
               </button>
             </div>
 
@@ -146,13 +144,12 @@ const ProfilePage = () => {
                   onNameChange={setName}
                 />
 
-                {/* Additional fields for conversation method */}
                 {claudeSummary && (
                   <div className="space-y-5 card-appear">
                     <textarea
                       value={notes}
                       onChange={e => setNotes(e.target.value)}
-                      placeholder="Any additional notes? Things they already own, things to avoid..."
+                      placeholder="Anything else? Allergies, exes to avoid gifting similarly to, that one time they said they 'don't need anything'..."
                       className="w-full bg-input border border-gold/20 rounded-md p-3 text-sm font-crimson text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-gold h-20 resize-none transition-all"
                     />
                     <BudgetSlider value={budget} onChange={setBudget} />
@@ -178,9 +175,9 @@ const ProfilePage = () => {
                 className={`btn-alchemy w-full py-4 rounded-lg font-cinzel text-sm tracking-wider card-appear ${launching ? '' : 'gold-pulse'}`}
               >
                 {launching ? (
-                  <span className="gold-pulse">⚗️ Launching quest...</span>
+                  <span className="gold-pulse">🏃 The agents are putting on pants...</span>
                 ) : (
-                  '⚗️ Seal the Profile & Launch Quest'
+                  '🚀 Release The Agents (No Turning Back)'
                 )}
               </button>
             )}
@@ -198,7 +195,7 @@ const ProfilePage = () => {
 
             {claudeSummary && (
               <div className="border-t border-gold/10 pt-4 card-appear">
-                <h4 className="font-cinzel text-xs text-gold tracking-wider mb-2">🧠 AI's Read</h4>
+                <h4 className="font-cinzel text-xs text-gold tracking-wider mb-2">🧠 What We Extracted From Their Soul</h4>
                 <p className="font-crimson italic text-sm text-foreground/80 leading-relaxed">"{claudeSummary}"</p>
                 {signalCount > 0 && (
                   <div className="flex items-center gap-1 mt-2">

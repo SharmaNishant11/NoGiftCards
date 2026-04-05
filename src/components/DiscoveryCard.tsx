@@ -65,7 +65,7 @@ const DiscoveryCard = ({ gift, index, isSaved, isInCart, onSave, onAddToCart }: 
           onClick={() => setExpanded(!expanded)}
           className={`text-xs font-crimson ${isInCart ? 'text-gold/70' : 'text-card-foreground/50'} hover:text-gold transition-colors`}
         >
-          ⚗️ {expanded ? 'Hide' : 'Show'} Alchemy Score
+          🔬 {expanded ? 'Hide' : 'Show'} Why We Think This Slaps
         </button>
 
         <AlchemyScoreBreakdown scores={gift.scores} expanded={expanded} />

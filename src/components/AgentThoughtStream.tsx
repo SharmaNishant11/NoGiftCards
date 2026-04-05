@@ -57,7 +57,7 @@ const AgentThoughtStream = ({ extraLines = [] }: AgentThoughtStreamProps) => {
 
   return (
     <div className="space-y-2">
-      <h4 className="font-cinzel text-sm text-gold flex items-center gap-2">🧠 Agent Thinks Out Loud</h4>
+      <h4 className="font-cinzel text-sm text-gold flex items-center gap-2">🧠 The AI Is Muttering To Itself</h4>
       <div
         ref={containerRef}
         className="rounded-lg p-4 h-48 overflow-y-auto font-mono text-xs leading-relaxed"

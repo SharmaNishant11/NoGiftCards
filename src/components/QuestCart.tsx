@@ -11,12 +11,12 @@ const QuestCart = ({ items, onRemove, onCheckout }: QuestCartProps) => {
   const subtotal = items.reduce((sum, item) => sum + item.gift.priceValue, 0);
 
   if (items.length === 0) {
-    return <EmptyState emoji="🛒" message="Your cauldron is empty. Add gifts from your discoveries." />;
+    return <EmptyState emoji="🛒" message="Nothing here yet. Go add some gifts before we judge you." />;
   }
 
   return (
     <div className="space-y-4">
-      <h4 className="font-cinzel text-sm text-gold tracking-wider">🛒 Quest Cart</h4>
+      <h4 className="font-cinzel text-sm text-gold tracking-wider">🛒 The Haul</h4>
 
       <div className="space-y-2">
         {items.map(item => (
@@ -47,7 +47,7 @@ const QuestCart = ({ items, onRemove, onCheckout }: QuestCartProps) => {
       </div>
 
       <button onClick={onCheckout} className="btn-alchemy w-full py-3 rounded-lg font-cinzel text-sm tracking-wider gold-pulse">
-        ⚗️ View Buy Links →
+        💳 Take My Money →
       </button>
     </div>
   );

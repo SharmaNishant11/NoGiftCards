@@ -3,15 +3,17 @@ import { useNavigate } from 'react-router-dom';
 
 const stats = [
   { emoji: '😤', value: 7, label: 'Gift Cards Prevented' },
-  { emoji: '🎁', value: 42, label: 'Souls Understood' },
-  { emoji: '⚗️', value: 69, label: 'Nice Score', suffix: '%' },
+  { emoji: '💀', value: 2847, label: 'Hours of Panicked Googling Saved' },
+  { emoji: '🫠', value: 100, label: '% Chance You\'ll Cry At How Good These Are', suffix: '%' },
 ];
 
 const features = [
-  { emoji: '🧠', title: 'AI Reads Your People', desc: 'Paste a convo or bio. Our AI extracts who they really are.' },
-  { emoji: '🗺️', title: 'Watch the Hunt Live', desc: 'Real AI browser agents scour Etsy, Amazon and beyond in real time.' },
-  { emoji: '⚗️', title: 'Semantically Scored', desc: 'Every gift scored by actual AI analysis — not guesswork.' },
+  { emoji: '📱', title: 'Paste Their Texts (We Won\'t Judge)', desc: 'We read your friend\'s unhinged 2am messages so you don\'t have to summarize their personality yourself.' },
+  { emoji: '🤖', title: 'Watch An AI Shop For You', desc: 'A real browser agent goes feral across Etsy, Amazon, and weird niche sites. You can literally watch it happen. It\'s oddly satisfying.' },
+  { emoji: '📊', title: 'Scored By Science* (*Not Science)', desc: 'Every gift gets a match score. It\'s based on AI analysis, vibes, and a little bit of audacity.' },
 ];
+
+const heroEmojis = ['🚨', '🎁', '😤', '💀', '🫠'];
 
 const useCountUp = (target: number, duration: number = 2000) => {
   const [count, setCount] = useState(0);
@@ -65,6 +67,15 @@ const Sparkles = () => (
   </div>
 );
 
+const RotatingEmoji = () => {
+  const [idx, setIdx] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => setIdx(i => (i + 1) % heroEmojis.length), 1500);
+    return () => clearInterval(timer);
+  }, []);
+  return <div className="text-7xl mb-6 gold-pulse">{heroEmojis[idx]}</div>;
+};
+
 const LandingPage = () => {
   const navigate = useNavigate();
 
@@ -73,21 +84,21 @@ const LandingPage = () => {
       <Sparkles />
 
       <section className="relative z-10 flex flex-col items-center justify-center min-h-screen px-6 text-center page-enter">
-        <div className="text-7xl mb-6 gold-pulse">⚗️</div>
+        <RotatingEmoji />
 
         <h1 className="font-cinzel text-4xl md:text-5xl text-gold leading-tight max-w-3xl">
-          Turn Gift-Giving Into A Quest
+          Stop Giving Gift Cards, You Coward
         </h1>
 
         <p className="font-crimson italic text-lg md:text-xl text-muted-foreground mt-4 max-w-xl leading-relaxed">
-          Paste a conversation. Drop a bio. Our AI reads between the lines and hunts the perfect gift — live, across the entire web.
+          Paste their texts. We'll psychoanalyze them (ethically, probably) and unleash AI agents to find a gift that proves you actually listen.
         </p>
 
         <button
           onClick={() => navigate('/profile')}
           className="btn-alchemy mt-8 px-10 py-4 rounded-xl font-cinzel text-base tracking-widest"
         >
-          Begin the Quest →
+          Fine, I'll Be A Good Friend →
         </button>
 
         <div className="flex flex-wrap justify-center gap-4 mt-12">
@@ -115,7 +126,7 @@ const LandingPage = () => {
 
       <section className="relative z-10 py-10 text-center">
         <p className="font-crimson text-muted-foreground text-sm">
-          Trusted by people who panic-Googled <span className="text-gold/70">"good gifts for someone who has everything"</span> at <span className="text-gold/70">2am</span>
+          Built for people who once gave someone a candle and still think about it at <span className="text-gold/70">3am</span>
         </p>
       </section>
 
@@ -123,6 +134,7 @@ const LandingPage = () => {
         <p className="font-crimson text-xs text-muted-foreground">
           Powered by <span className="font-cinzel text-gold/50 tracking-wider">Browser Use</span> · <span className="font-cinzel text-gold/50 tracking-wider">Gemini</span> · <span className="font-cinzel text-gold/50 tracking-wider">Lovable</span> · <span className="font-cinzel text-gold/50 tracking-wider">NoGiftCards</span>
         </p>
+        <p className="font-crimson text-[10px] text-muted-foreground/50 mt-2 italic">No gift cards were harmed in the making of this website</p>
       </footer>
     </div>
   );
