@@ -44,31 +44,32 @@ Budget: $${budget} (find gifts ranging from $${Math.round(budget * 0.3)} to $${M
 Occasion: ${occasion}
 
 INSTRUCTIONS:
-1. Search Etsy.com for 2-3 unique handmade/artisan gifts matching this personality.
-2. Search Amazon.com for 2-3 gifts. Look for well-reviewed products.
-3. Search 1-2 specialty/niche stores (uncommongoods.com, food52.com, etc.)
+1. Search UncommonGoods.com (uncommongoods.com) for 2-3 unique/creative gifts matching this personality.
+2. Search Amazon.com for 2 gifts. Look for well-reviewed products.
+3. Search 1-2 of these specialty stores for unique/funny gifts:
+   - mcphee.com (weird/funny novelty gifts)
+   - offthewagonshop.com (unique gifts)
+   - giftsforyounow.com (personalized gifts)
+   - yoursurprise.com/funny-gifts (funny personalized gifts)
+   - zazzle.com (custom products)
+
+DO NOT search Etsy — it blocks automated browsing.
+
+CRITICAL - OUTPUT FORMAT:
+After finding EACH gift, you MUST immediately output a JSON block so results appear one at a time.
+Use this exact format after each product page visit:
+
+GIFT_FOUND: [{"name": "Product Name", "price": 42.99, "url": "https://exact-url", "site": "UncommonGoods", "reason": "Why this is perfect", "selected_option": "Color: Blue"}]
 
 CRITICAL REQUIREMENTS:
 - Visit EACH product page to verify the EXACT price shown on the page.
 - If a product has multiple options (colors, sizes, flavors), note which specific option you recommend and confirm the price for THAT option.
 - The price you report MUST match what's shown on the product page for the selected option.
 - Copy the EXACT product URL from the browser address bar.
+- Each gift must be UNIQUE — no duplicates.
+- Output GIFT_FOUND after EACH product, not all at the end.
 
-After finding EACH gift, immediately output it as a JSON array so results appear incrementally.
-
-Format your findings as a JSON array. After visiting each store, output what you've found so far:
-[
-  {
-    "name": "Product Name (specific option if applicable)",
-    "price": 42.99,
-    "url": "https://exact-product-url",
-    "site": "Etsy",
-    "reason": "Perfect for a coffee lover who hates mornings",
-    "selected_option": "Color: Midnight Blue, Size: Large"
-  }
-]
-
-IMPORTANT: Only return REAL products with REAL URLs. Visit each product page to verify price and URL. Focus on unique, thoughtful gifts.`;
+IMPORTANT: Only return REAL products with REAL URLs. Visit each product page to verify price and URL. Focus on unique, thoughtful, sometimes funny gifts — NOT generic stuff.`;
 
     const buResponse = await fetch(`${BROWSER_USE_API}/sessions`, {
       method: "POST",
@@ -95,7 +96,7 @@ IMPORTANT: Only return REAL products with REAL URLs. Visit each product page to 
         live_url: buSession.live_url || null,
         profile: profile,
         status: "running",
-        current_node: "etsy",
+        current_node: "specialty",
         visited_nodes: ["base"],
       })
       .select()
@@ -106,7 +107,7 @@ IMPORTANT: Only return REAL products with REAL URLs. Visit each product page to 
     await supabase.from("quest_messages").insert({
       quest_id: quest.id,
       role: "system",
-      summary: `> Quest launched! Searching for gifts for ${profile.name}...`,
+      summary: `> Agents deployed! Hunting gifts for ${profile.name}...`,
     });
 
     return new Response(JSON.stringify({

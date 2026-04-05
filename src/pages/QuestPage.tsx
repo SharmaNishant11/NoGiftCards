@@ -14,6 +14,8 @@ import EmptyState from '@/components/EmptyState';
 import SkeletonCard from '@/components/SkeletonCard';
 import { toast } from 'sonner';
 
+const INITIAL_DISPLAY_COUNT = 6;
+
 function discoveryToGiftCard(d: Discovery): GiftCard {
   return {
     id: d.id, name: d.name, emoji: d.emoji, source: d.site,
@@ -55,13 +57,17 @@ const QuestPage = () => {
   const currentMapNodes = isMockMode ? mockMapNodes : realMapNodes;
   const isLoading = isMockMode ? false : (questLoading && gifts.length === 0);
   const questComplete = isMockMode ? true : status?.status === 'complete';
+  const questRunning = !isMockMode && status?.status === 'running';
 
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [cart, setCart] = useState<CartItem[]>([]);
   const [lastRedirect, setLastRedirect] = useState<string | null>(null);
   const [showLiveBrowser, setShowLiveBrowser] = useState(false);
+  const [displayCount, setDisplayCount] = useState(INITIAL_DISPLAY_COUNT);
 
   const cartIds = new Set(cart.map(c => c.gift.id));
+  const visibleGifts = gifts.slice(0, displayCount);
+  const hasMore = gifts.length > displayCount;
 
   const toggleSave = (id: string) => {
     setSavedIds(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
@@ -101,7 +107,7 @@ const QuestPage = () => {
               <button onClick={() => navigate('/profile')} className="text-gold/50 hover:text-gold transition-colors font-cinzel text-sm">← Profile</button>
             )}
             <h1 className="font-cinzel text-xl text-gold">Mission Control (Very Official)</h1>
-            {!isMockMode && status?.status === 'running' && (
+            {questRunning && (
               <span className="px-2 py-0.5 rounded-full text-[10px] font-cinzel bg-gold/20 text-gold border border-gold/30 gold-pulse">LIVE</span>
             )}
             {questComplete && !isMockMode && (
@@ -163,11 +169,11 @@ const QuestPage = () => {
                 <p className="text-center font-crimson italic text-muted-foreground text-sm card-appear">🏃 An AI is literally browsing the internet for you right now. We live in the future.</p>
               </div>
             ) : gifts.length === 0 ? (
-              <EmptyState emoji="🫠" message={isMockMode ? "You haven't told us about anyone yet. We can't read minds. Yet." : "Waiting for discoveries..."} />
+              <EmptyState emoji="🫠" message={isMockMode ? "You haven't told us about anyone yet. We can't read minds. Yet." : questRunning ? "The AI is out there shopping. First gifts should pop in any moment..." : "Waiting for discoveries..."} />
             ) : (
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {gifts.map((gift, i) => (
+                  {visibleGifts.map((gift, i) => (
                     <DiscoveryCard
                       key={gift.id} gift={gift} index={i}
                       isSaved={savedIds.has(gift.id)} isInCart={cartIds.has(gift.id)}
@@ -175,12 +181,24 @@ const QuestPage = () => {
                     />
                   ))}
                 </div>
-                {gifts.length >= 4 && <GiftBattle giftA={gifts[0]} giftB={gifts[1]} onCrown={() => {}} />}
+
+                {hasMore && (
+                  <div className="text-center">
+                    <button
+                      onClick={() => setDisplayCount(prev => prev + 6)}
+                      className="btn-alchemy px-6 py-2.5 rounded-lg font-cinzel text-sm tracking-wider"
+                    >
+                      🔮 Show More Gifts ({gifts.length - displayCount} remaining)
+                    </button>
+                  </div>
+                )}
+
+                {visibleGifts.length >= 4 && <GiftBattle giftA={visibleGifts[0]} giftB={visibleGifts[1]} onCrown={() => {}} />}
               </>
             )}
 
-            {/* Loading more indicator when quest is running but we already have some */}
-            {!isMockMode && status?.status === 'running' && gifts.length > 0 && (
+            {/* Loading more indicator when quest is running */}
+            {questRunning && gifts.length > 0 && (
               <p className="text-center font-crimson italic text-muted-foreground text-sm gold-pulse">
                 🔍 Still digging. The AI just whispered "ooh what about this one" to itself.
               </p>

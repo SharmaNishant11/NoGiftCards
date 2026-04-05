@@ -13,24 +13,34 @@ function inferCurrentNode(stepCount: number, messages: any[]): { currentNode: st
   let current = "base";
   const messageText = messages.map((m: any) => (m.summary || m.content || m.lastStepSummary || "").toLowerCase()).join(" ");
 
-  if (messageText.includes("etsy") || stepCount >= 3) { visited.push("etsy"); current = "etsy"; }
+  if (messageText.includes("uncommon") || messageText.includes("mcphee") || messageText.includes("offthewagon") || stepCount >= 3) { visited.push("specialty"); current = "specialty"; }
   if (messageText.includes("amazon") || stepCount >= 10) { visited.push("amazon"); current = "amazon"; }
-  if (messageText.includes("specialty") || messageText.includes("uncommon") || messageText.includes("food52") || stepCount >= 18) { visited.push("specialty"); current = "specialty"; }
-  if (messageText.includes("niche") || messageText.includes("specific") || stepCount >= 25) { visited.push("niche"); current = "niche"; }
+  if (messageText.includes("zazzle") || messageText.includes("yoursurprise") || messageText.includes("giftsforyounow") || stepCount >= 18) { visited.push("niche"); current = "niche"; }
 
   return { currentNode: current, visitedNodes: [...new Set(visited)] };
 }
 
 function cleanAgentMessage(raw: string): string {
   if (!raw) return "";
-  let cleaned = raw.replace(/<[^>]*>/g, "");
+  let cleaned = raw;
+  // Strip HTML tags
+  cleaned = cleaned.replace(/<[^>]*>/g, "");
+  // Strip code blocks
   cleaned = cleaned.replace(/```[\s\S]*?```/g, "");
+  // Strip inline code
   cleaned = cleaned.replace(/`[^`]+`/g, (match) => match.replace(/`/g, ""));
-  cleaned = cleaned.replace(/\{[\s\S]{100,}\}/g, "");
-  cleaned = cleaned.replace(/\[\s*\{[\s\S]{100,}\}\s*\]/g, "");
-  cleaned = cleaned.replace(/https?:\/\/\S{80,}/g, "[link]");
+  // Strip JSON blobs (large objects/arrays)
+  cleaned = cleaned.replace(/\{[\s\S]{100,}\}/g, "[analyzing data]");
+  cleaned = cleaned.replace(/\[\s*\{[\s\S]{100,}\}\s*\]/g, "[found products]");
+  cleaned = cleaned.replace(/GIFT_FOUND:\s*\[[\s\S]*?\]/g, "[found a gift!]");
+  // Strip long URLs
+  cleaned = cleaned.replace(/https?:\/\/\S{60,}/g, "[link]");
+  // Clean whitespace
   cleaned = cleaned.replace(/\n{3,}/g, "\n").replace(/\s{3,}/g, " ").trim();
-  if (cleaned.length > 300) cleaned = cleaned.substring(0, 297) + "...";
+  // Skip empty/short
+  if (cleaned.length < 5) return "";
+  // Truncate
+  if (cleaned.length > 250) cleaned = cleaned.substring(0, 247) + "...";
   return cleaned;
 }
 
@@ -43,11 +53,28 @@ function guessEmoji(name: string): string {
     podcast: "🎙️", mystery: "🔍", detective: "🕵️", craft: "✂️",
     kit: "📦", set: "🎁", subscription: "📬", print: "🖼️",
     chocolate: "🍫", soap: "🧼", bath: "🛁", plant: "🌿",
+    socks: "🧦", puzzle: "🧩", lamp: "💡", clock: "⏰",
+    hat: "🎩", shirt: "👕", bag: "👜", phone: "📱",
   };
   for (const [key, val] of Object.entries(map)) {
     if (n.includes(key)) return val;
   }
   return "🎁";
+}
+
+// Normalize a URL for dedup purposes
+function normalizeUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    // Remove tracking params
+    u.searchParams.delete("ref");
+    u.searchParams.delete("utm_source");
+    u.searchParams.delete("utm_medium");
+    u.searchParams.delete("utm_campaign");
+    return u.origin + u.pathname;
+  } catch {
+    return url.toLowerCase().trim();
+  }
 }
 
 serve(async (req) => {
@@ -133,34 +160,26 @@ serve(async (req) => {
     }
 
     const buSession = await buResponse.json();
-    console.log("BU session status:", buSession.status, "stepCount:", buSession.stepCount, "output:", buSession.output ? "present" : "null");
+    console.log("BU session status:", buSession.status, "stepCount:", buSession.stepCount);
 
-    // Determine quest status from Browser Use session
-    // CRITICAL: Only these mean truly done:
-    //   "stopped" = task completed or explicitly stopped
-    //   "timed_out" = session timed out
-    //   "error" = unrecoverable error
-    // "created", "idle", "running" all mean still in progress
     const buStatus = buSession.status;
     let questStatus = "running";
 
     if (buStatus === "stopped" || buStatus === "timed_out") {
       questStatus = "complete";
     } else if (buStatus === "error") {
-      questStatus = "complete"; // treat as complete so UI stops spinning
+      questStatus = "complete";
     }
-    // "created", "idle", "running" → keep as "running"
 
     const stepCount = buSession.stepCount || 0;
     const lastStepSummary = buSession.lastStepSummary || "";
 
-    // Infer map nodes from step count and any available messages
     const { currentNode, visitedNodes } = inferCurrentNode(stepCount, [{ summary: lastStepSummary }]);
     if (questStatus === "complete") {
       visitedNodes.push("alchemy");
     }
 
-    // Store lastStepSummary as a thought message if it's new and meaningful
+    // Store lastStepSummary as a thought message if meaningful
     if (lastStepSummary) {
       const cleaned = cleanAgentMessage(lastStepSummary);
       if (cleaned && cleaned.length >= 5) {
@@ -191,23 +210,24 @@ serve(async (req) => {
       updated_at: new Date().toISOString(),
     }).eq("id", questId);
 
+    // Get existing discoveries for dedup
+    const { data: existingDisc } = await supabase
+      .from("discoveries")
+      .select("name, url")
+      .eq("quest_id", questId);
+
+    const existingNames = new Set((existingDisc || []).map((d: any) => d.name.toLowerCase()));
+    const existingUrls = new Set((existingDisc || []).map((d: any) => normalizeUrl(d.url)));
+
     // Try to extract discoveries from output and lastStepSummary
     const outputText = buSession.output || "";
     const allText = [lastStepSummary, outputText].join("\n");
 
-    const { data: existingDisc } = await supabase
-      .from("discoveries")
-      .select("name")
-      .eq("quest_id", questId);
+    await parseIncrementalDiscoveries(supabase, questId, allText, quest.profile, existingNames, existingUrls);
 
-    const existingNames = new Set((existingDisc || []).map((d: any) => d.name.toLowerCase()));
-
-    // Parse discoveries from any available text
-    await parseIncrementalDiscoveries(supabase, questId, allText, quest.profile, existingNames);
-
-    // If complete and we have output, do final thorough parse with AI
+    // If complete and we have output, do final thorough parse
     if (questStatus === "complete" && outputText) {
-      await parseAndStoreDiscoveries(supabase, questId, outputText, quest.profile, existingNames);
+      await parseAndStoreDiscoveries(supabase, questId, outputText, quest.profile, existingNames, existingUrls);
     }
 
     // Get all messages for response
@@ -231,15 +251,26 @@ serve(async (req) => {
   }
 });
 
-async function parseIncrementalDiscoveries(supabase: any, questId: string, allText: string, profile: any, existingNames: Set<string>) {
+function isDuplicate(name: string, url: string, existingNames: Set<string>, existingUrls: Set<string>): boolean {
+  if (existingNames.has(name.toLowerCase())) return true;
+  if (existingUrls.has(normalizeUrl(url))) return true;
+  return false;
+}
+
+async function parseIncrementalDiscoveries(supabase: any, questId: string, allText: string, profile: any, existingNames: Set<string>, existingUrls: Set<string>) {
+  // Look for GIFT_FOUND: markers first
+  const giftFoundMatches = allText.match(/GIFT_FOUND:\s*(\[\s*\{[\s\S]*?\}\s*\])/g) || [];
+  // Also look for standalone JSON arrays
   const jsonMatches = allText.match(/\[\s*\{[\s\S]*?\}\s*\]/g) || [];
-  for (const match of jsonMatches) {
+  const allMatches = [...giftFoundMatches.map(m => m.replace(/^GIFT_FOUND:\s*/, '')), ...jsonMatches];
+
+  for (const match of allMatches) {
     try {
       const parsed = JSON.parse(match);
       if (!Array.isArray(parsed)) continue;
 
       const validGifts = parsed.filter((g: any) => g.name && g.url && g.price !== undefined);
-      const newGifts = validGifts.filter((g: any) => !existingNames.has(g.name.toLowerCase()));
+      const newGifts = validGifts.filter((g: any) => !isDuplicate(g.name, g.url, existingNames, existingUrls));
 
       if (newGifts.length > 0) {
         const discoveries = newGifts.map((gift: any, idx: number) => {
@@ -268,19 +299,21 @@ async function parseIncrementalDiscoveries(supabase: any, questId: string, allTe
         });
 
         await supabase.from("discoveries").insert(discoveries);
-        discoveries.forEach((d: any) => existingNames.add(d.name.toLowerCase()));
+        discoveries.forEach((d: any) => {
+          existingNames.add(d.name.toLowerCase());
+          existingUrls.add(normalizeUrl(d.url));
+        });
       }
     } catch { /* not valid JSON */ }
   }
 }
 
-async function parseAndStoreDiscoveries(supabase: any, questId: string, output: string, profile: any, existingNames: Set<string>) {
+async function parseAndStoreDiscoveries(supabase: any, questId: string, output: string, profile: any, existingNames: Set<string>, existingUrls: Set<string>) {
   try {
-    // First try direct JSON parse
     const jsonMatch = output.match(/\[\s*\{[\s\S]*?\}\s*\]/);
     if (jsonMatch) {
       const gifts = JSON.parse(jsonMatch[0]);
-      const newGifts = gifts.filter((g: any) => g.name && g.url && !existingNames.has(g.name.toLowerCase()));
+      const newGifts = gifts.filter((g: any) => g.name && g.url && !isDuplicate(g.name, g.url, existingNames, existingUrls));
 
       if (newGifts.length > 0) {
         const discoveries = newGifts.map((gift: any, idx: number) => {
@@ -309,15 +342,14 @@ async function parseAndStoreDiscoveries(supabase: any, questId: string, output: 
       }
     }
 
-    // Fallback: AI parsing
-    await parseWithAI(supabase, questId, output, profile, existingNames);
+    await parseWithAI(supabase, questId, output, profile, existingNames, existingUrls);
   } catch (e) {
     console.error("Failed to parse discoveries:", e);
-    await parseWithAI(supabase, questId, output, profile, existingNames);
+    await parseWithAI(supabase, questId, output, profile, existingNames, existingUrls);
   }
 }
 
-async function parseWithAI(supabase: any, questId: string, output: string, profile: any, existingNames: Set<string>) {
+async function parseWithAI(supabase: any, questId: string, output: string, profile: any, existingNames: Set<string>, existingUrls: Set<string>) {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY) return;
 
@@ -328,7 +360,7 @@ async function parseWithAI(supabase: any, questId: string, output: string, profi
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
         messages: [
-          { role: "system", content: "Extract gift products from this browser agent output. Return a JSON array with objects containing: name, price (number), url, site, reason (one sentence why it's a good gift), selected_option (specific variant like color/size if applicable). Only include real products with real URLs." },
+          { role: "system", content: "Extract gift products from this browser agent output. Return a JSON array with objects containing: name, price (number), url, site, reason (one sentence why it's a good gift), selected_option (specific variant like color/size if applicable). Only include real products with real URLs. No duplicates." },
           { role: "user", content: output.substring(0, 8000) },
         ],
       }),
@@ -340,7 +372,7 @@ async function parseWithAI(supabase: any, questId: string, output: string, profi
       const jsonMatch = content.match(/\[\s*\{[\s\S]*?\}\s*\]/);
       if (jsonMatch) {
         const gifts = JSON.parse(jsonMatch[0]);
-        const newGifts = gifts.filter((g: any) => g.name && g.url && !existingNames.has(g.name.toLowerCase()));
+        const newGifts = gifts.filter((g: any) => g.name && g.url && !isDuplicate(g.name, g.url, existingNames, existingUrls));
         if (newGifts.length > 0) {
           const budget = profile.budget || 50;
           const discoveries = newGifts.map((gift: any, idx: number) => {
