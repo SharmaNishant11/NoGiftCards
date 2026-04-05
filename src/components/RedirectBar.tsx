@@ -22,7 +22,7 @@ const RedirectBar = ({ onRedirect, lastRedirect }: RedirectBarProps) => {
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-          placeholder="e.g. Focus on handmade items..."
+          placeholder="e.g. No more mugs, try something weird..."
           className="flex-1 bg-input border border-gold/30 rounded-md px-3 py-2 text-sm text-foreground font-crimson placeholder:text-muted-foreground/50 focus:outline-none focus:border-gold transition-all"
         />
         <button onClick={handleSubmit} className="btn-alchemy px-4 py-2 rounded-md text-sm">
