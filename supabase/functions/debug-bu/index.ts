@@ -5,6 +5,24 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const BROWSER_USE_API = "https://api.browser-use.com/api/v3";
+
+// Same extraction logic as quest-status
+function extractGiftPayloads(text: string): string[] {
+  const payloads: string[] = [];
+  const seen = new Set<string>();
+  const marker = /GIFT_FOUND:\s*(\[[\s\S]*?\](?=\s|$|\n))/g;
+  let m: RegExpExecArray | null;
+  while ((m = marker.exec(text)) !== null) {
+    const payload = m[1];
+    if (payload && payload.includes('"name"') && payload.includes('"url"') && !seen.has(payload)) {
+      seen.add(payload);
+      payloads.push(payload);
+    }
+  }
+  return payloads;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -13,60 +31,76 @@ serve(async (req) => {
   const sessionId = url.searchParams.get("sessionId");
   if (!sessionId) return new Response("need sessionId", { status: 400, headers: corsHeaders });
 
-  const BU = "https://api.browser-use.com/api/v3";
-
-  // Paginate all messages
-  let allMessages: any[] = [];
+  // Simulate incremental polling: fetch messages page by page
+  // and check if we find GIFT_FOUND on each page
+  const results: { page: number; msgsOnPage: number; textsExtracted: number; giftsFound: number; giftNames: string[] }[] = [];
   let cursor: string | undefined;
-  for (let page = 0; page < 10; page++) {
-    const msgUrl = cursor 
-      ? `${BU}/sessions/${sessionId}/messages?limit=50&cursor=${cursor}`
-      : `${BU}/sessions/${sessionId}/messages?limit=50`;
-    const msgResp = await fetch(msgUrl, { headers: { "X-Browser-Use-API-Key": API_KEY } });
-    const payload = await msgResp.json();
-    const msgs = payload.messages || [];
-    allMessages = allMessages.concat(msgs);
-    if (!payload.hasMore || msgs.length === 0) break;
-    cursor = msgs[msgs.length - 1].id;
-  }
+  let cumulativeGifts: string[] = [];
 
-  // Deep extract GIFT_FOUND from messages
-  const giftFoundEntries: any[] = [];
-  for (let i = 0; i < allMessages.length; i++) {
-    const m = allMessages[i];
-    let dataStr = typeof m.data === "string" ? m.data : JSON.stringify(m.data || "");
-    
-    // Try to parse data as JSON to get nested content
-    try {
-      const parsed = JSON.parse(dataStr);
-      if (parsed.content) {
+  for (let page = 0; page < 5; page++) {
+    const qs = cursor ? `limit=50&cursor=${cursor}` : `limit=50`;
+    const resp = await fetch(`${BROWSER_USE_API}/sessions/${sessionId}/messages?${qs}`, {
+      headers: { "X-Browser-Use-API-Key": API_KEY },
+    });
+    const payload = await resp.json();
+    const msgs = payload.messages || [];
+
+    const textsThisPage: string[] = [];
+    for (const msg of msgs) {
+      if (!msg.data) continue;
+      cursor = msg.id;
+      try {
+        const parsed = typeof msg.data === "string" ? JSON.parse(msg.data) : msg.data;
         if (Array.isArray(parsed.content)) {
           for (const c of parsed.content) {
-            const text = c.text || c.content || "";
-            if (text.includes("GIFT_FOUND")) {
-              giftFoundEntries.push({ msgIndex: i, type: m.type, text: text.substring(0, 500) });
+            if (c?.text) textsThisPage.push(c.text);
+            else if (typeof c === "string") textsThisPage.push(c);
+          }
+        } else if (typeof parsed.content === "string") {
+          textsThisPage.push(parsed.content);
+        }
+        if (typeof parsed.text === "string") textsThisPage.push(parsed.text);
+      } catch {
+        if (typeof msg.data === "string") textsThisPage.push(msg.data);
+      }
+    }
+
+    // Extract gifts from this page's texts
+    const pageGiftNames: string[] = [];
+    for (const text of textsThisPage) {
+      if (!text.includes("GIFT_FOUND")) continue;
+      const payloads = extractGiftPayloads(text);
+      for (const p of payloads) {
+        try {
+          const gifts = JSON.parse(p);
+          if (Array.isArray(gifts)) {
+            for (const g of gifts) {
+              if (g.name && !cumulativeGifts.includes(g.name)) {
+                cumulativeGifts.push(g.name);
+                pageGiftNames.push(g.name);
+              }
             }
           }
-        } else if (typeof parsed.content === "string" && parsed.content.includes("GIFT_FOUND")) {
-          giftFoundEntries.push({ msgIndex: i, type: m.type, text: parsed.content.substring(0, 500) });
+        } catch (e) {
+          pageGiftNames.push(`PARSE_ERROR: ${(e as Error).message} - ${p.substring(0, 100)}`);
         }
       }
-      // Also check top-level text
-      if (typeof parsed.text === "string" && parsed.text.includes("GIFT_FOUND")) {
-        giftFoundEntries.push({ msgIndex: i, type: m.type, text: parsed.text.substring(0, 500) });
-      }
-    } catch {}
-    
-    // Fallback: check raw string
-    if (dataStr.includes("GIFT_FOUND") && !giftFoundEntries.some(e => e.msgIndex === i)) {
-      giftFoundEntries.push({ msgIndex: i, type: m.type, rawPreview: dataStr.substring(dataStr.indexOf("GIFT_FOUND"), dataStr.indexOf("GIFT_FOUND") + 300) });
     }
+
+    results.push({
+      page,
+      msgsOnPage: msgs.length,
+      textsExtracted: textsThisPage.length,
+      giftsFound: pageGiftNames.length,
+      giftNames: pageGiftNames,
+    });
+
+    if (!payload.hasMore || msgs.length === 0) break;
   }
 
   return new Response(JSON.stringify({
-    totalMessages: allMessages.length,
-    types: [...new Set(allMessages.map((m: any) => m.type))],
-    typeCounts: allMessages.reduce((acc: any, m: any) => { acc[m.type] = (acc[m.type] || 0) + 1; return acc; }, {}),
-    giftFoundEntries,
+    totalUniqueGifts: cumulativeGifts.length,
+    allGiftNames: cumulativeGifts,
+    pageResults: results,
   }, null, 2), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 });
