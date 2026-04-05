@@ -14,12 +14,18 @@ const TARGET_DISCOVERY_COUNT = 6;
 
 function inferCurrentNode(stepCount: number, text: string): { currentNode: string; visitedNodes: string[] } {
   const visited: string[] = ["base"];
-  let current = "base";
+  let current = "specialty"; // we always start at specialty stores
   const t = text.toLowerCase();
 
-  if (t.includes("uncommon") || t.includes("mcphee") || t.includes("offthewagon") || stepCount >= 3) { visited.push("specialty"); current = "specialty"; }
-  if (t.includes("amazon") || stepCount >= 10) { visited.push("amazon"); current = "amazon"; }
-  if (t.includes("zazzle") || t.includes("yoursurprise") || t.includes("giftsforyounow") || stepCount >= 18) { visited.push("niche"); current = "niche"; }
+  // Only mark sites visited based on TEXT evidence (the agent actually mentioning the site)
+  // Step count is only used as a loose secondary signal with high thresholds
+  const mentionsSpecialty = t.includes("uncommon") || t.includes("mcphee") || t.includes("offthewagon");
+  const mentionsAmazon = t.includes("amazon");
+  const mentionsNiche = t.includes("zazzle") || t.includes("yoursurprise") || t.includes("giftsforyounow");
+
+  if (mentionsSpecialty || stepCount >= 8) { visited.push("specialty"); current = "specialty"; }
+  if (mentionsAmazon || stepCount >= 18) { visited.push("amazon"); current = "amazon"; }
+  if (mentionsNiche || stepCount >= 28) { visited.push("niche"); current = "niche"; }
 
   return { currentNode: current, visitedNodes: [...new Set(visited)] };
 }
