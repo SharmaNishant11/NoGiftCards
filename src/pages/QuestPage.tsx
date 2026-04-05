@@ -188,7 +188,6 @@ const QuestPage = () => {
                   </div>
                 )}
 
-                {visibleGifts.length >= 4 && <GiftBattle giftA={visibleGifts[0]} giftB={visibleGifts[1]} onCrown={() => {}} />}
               </>
             )}
 
