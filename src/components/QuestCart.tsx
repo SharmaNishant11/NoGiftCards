@@ -16,7 +16,7 @@ const QuestCart = ({ items, onRemove, onCheckout }: QuestCartProps) => {
 
   return (
     <div className="space-y-4">
-      <h4 className="font-cinzel text-sm text-gold tracking-wider">🛒 Quest Cart</h4>
+      <h4 className="font-cinzel text-sm text-gold tracking-wider">🛒 The Haul</h4>
 
       <div className="space-y-2">
         {items.map(item => (
