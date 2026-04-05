@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { mockGifts, mockMapNodes, mockRecipient } from '@/data/mockData';
 import { CartItem, GiftCard, Discovery, MapNode } from '@/types';
 import { useQuestPolling } from '@/hooks/useQuestPolling';
@@ -59,7 +59,6 @@ const QuestPage = () => {
   const questComplete = isMockMode ? true : status?.status === 'complete';
   const questRunning = !isMockMode && status?.status === 'running';
 
-  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [cart, setCart] = useState<CartItem[]>([]);
   const [lastRedirect, setLastRedirect] = useState<string | null>(null);
   const [showLiveBrowser, setShowLiveBrowser] = useState(false);
@@ -68,10 +67,6 @@ const QuestPage = () => {
   const cartIds = new Set(cart.map(c => c.gift.id));
   const visibleGifts = gifts.slice(0, displayCount);
   const hasMore = gifts.length > displayCount;
-
-  const toggleSave = (id: string) => {
-    setSavedIds(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
-  };
 
   const addToCart = (gift: GiftCard) => {
     if (cartIds.has(gift.id)) {
@@ -147,7 +142,7 @@ const QuestPage = () => {
         <div className="grid grid-cols-1 lg:grid-cols-[280px,1fr,300px] gap-6">
           {/* Left: Agent Intelligence */}
           <div className="space-y-4">
-            <AgentThoughtStream extraLines={isMockMode ? [] : thoughts} />
+            <AgentThoughtStream extraLines={isMockMode ? [] : thoughts} isActive={questRunning} />
             
             {!isSharedView && <RedirectBar onRedirect={handleRedirect} lastRedirect={lastRedirect} />}
           </div>
@@ -176,8 +171,8 @@ const QuestPage = () => {
                   {visibleGifts.map((gift, i) => (
                     <DiscoveryCard
                       key={gift.id} gift={gift} index={i}
-                      isSaved={savedIds.has(gift.id)} isInCart={cartIds.has(gift.id)}
-                      onSave={() => toggleSave(gift.id)} onAddToCart={() => addToCart(gift)}
+                      isInCart={cartIds.has(gift.id)}
+                      onAddToCart={() => addToCart(gift)}
                     />
                   ))}
                 </div>
