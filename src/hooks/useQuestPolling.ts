@@ -25,16 +25,9 @@ export function useQuestPolling(questId: string | null) {
 
     try {
       const statusUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/quest-status?questId=${questId}`;
-      const discoveriesUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-discoveries?questId=${questId}`;
-
-      const [response, discResp] = await Promise.all([
-        fetch(statusUrl, {
-          headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-        }),
-        fetch(discoveriesUrl, {
-          headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-        }),
-      ]);
+      const response = await fetch(statusUrl, {
+        headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+      });
 
       if (!response.ok) throw new Error('Failed to fetch quest status');
       const statusData: QuestStatusResponse = await response.json();
@@ -43,6 +36,7 @@ export function useQuestPolling(questId: string | null) {
       setError(null);
 
       setThoughts(statusData.messages?.map(m => m.summary) || []);
+      setDiscoveries(statusData.discoveries || []);
 
       const visited = new Set(statusData.visitedNodes || []);
       const current = statusData.currentNode;
@@ -52,11 +46,6 @@ export function useQuestPolling(questId: string | null) {
         status: visited.has(n.key) && n.key !== current ? 'visited' as const
           : n.key === current ? 'active' as const : 'queued' as const,
       })));
-
-      if (discResp.ok) {
-        const discData = await discResp.json();
-        setDiscoveries(discData.discoveries || []);
-      }
 
       setLoading(false);
 

@@ -166,6 +166,74 @@ async function stopSessionIfStillRunning(sessionId: string, apiKey: string) {
   }
 }
 
+function extractJsonArray(text: string, startIndex: number): string | null {
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = startIndex; i < text.length; i += 1) {
+    const char = text[i];
+
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+
+    if (char === "\\") {
+      escaped = true;
+      continue;
+    }
+
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+
+    if (inString) continue;
+
+    if (char === "[") depth += 1;
+    if (char === "]") {
+      depth -= 1;
+      if (depth === 0) {
+        return text.slice(startIndex, i + 1);
+      }
+    }
+  }
+
+  return null;
+}
+
+function extractGiftPayloads(text: string): string[] {
+  const payloads: string[] = [];
+  const seen = new Set<string>();
+  const marker = /GIFT_FOUND:\s*/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = marker.exec(text)) !== null) {
+    const arrayStart = text.indexOf("[", match.index + match[0].length);
+    if (arrayStart === -1) continue;
+
+    const payload = extractJsonArray(text, arrayStart);
+    if (payload && payload.includes('"name"') && payload.includes('"url"') && !seen.has(payload)) {
+      seen.add(payload);
+      payloads.push(payload);
+      marker.lastIndex = arrayStart + payload.length;
+    }
+  }
+
+  if (payloads.length > 0) return payloads;
+
+  const fallback = /\[[\s\S]*?"name"[\s\S]*?"url"[\s\S]*?\]/g;
+  for (const raw of text.match(fallback) || []) {
+    if (!seen.has(raw)) {
+      seen.add(raw);
+      payloads.push(raw);
+    }
+  }
+
+  return payloads;
+}
+
 function buildTranscript(lastStepSummary: string, outputText: string, sessionMessages: any[]) {
   const extracted = uniqueStrings(extractStrings(sessionMessages));
   return [lastStepSummary, outputText, ...extracted].filter(Boolean).join("\n");
@@ -234,11 +302,18 @@ serve(async (req) => {
         await stopSessionIfStillRunning(quest.session_id, BROWSER_USE_API_KEY);
       }
 
-      const { data: messages } = await supabase
-        .from("quest_messages")
-        .select("*")
-        .eq("quest_id", questId)
-        .order("created_at", { ascending: true });
+      const [{ data: messages }, { data: discoveries }] = await Promise.all([
+        supabase
+          .from("quest_messages")
+          .select("*")
+          .eq("quest_id", questId)
+          .order("created_at", { ascending: true }),
+        supabase
+          .from("discoveries")
+          .select("*")
+          .eq("quest_id", questId)
+          .order("alchemy_score", { ascending: false }),
+      ]);
 
       return new Response(JSON.stringify({
         questId: quest.id,
@@ -247,6 +322,7 @@ serve(async (req) => {
         visitedNodes: quest.visited_nodes,
         liveUrl: quest.live_url,
         messages: messages || [],
+        discoveries: discoveries || [],
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -265,16 +341,23 @@ serve(async (req) => {
         updated_at: new Date().toISOString(),
       }).eq("id", questId);
 
-      const { data: messages } = await supabase
-        .from("quest_messages")
-        .select("*")
-        .eq("quest_id", questId)
-        .order("created_at", { ascending: true });
+      const [{ data: messages }, { data: discoveries }] = await Promise.all([
+        supabase
+          .from("quest_messages")
+          .select("*")
+          .eq("quest_id", questId)
+          .order("created_at", { ascending: true }),
+        supabase
+          .from("discoveries")
+          .select("*")
+          .eq("quest_id", questId)
+          .order("alchemy_score", { ascending: false }),
+      ]);
 
       return new Response(JSON.stringify({
         questId: quest.id, status: "complete",
         currentNode: "alchemy", visitedNodes: [...(quest.visited_nodes || []), "alchemy"],
-        liveUrl: quest.live_url, messages: messages || [],
+        liveUrl: quest.live_url, messages: messages || [], discoveries: discoveries || [],
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
@@ -337,14 +420,6 @@ serve(async (req) => {
       }
     }
 
-    // Update quest record
-    await supabase.from("quests").update({
-      status: questStatus,
-      current_node: questStatus === "complete" ? "alchemy" : currentNode,
-      visited_nodes: [...new Set(visitedNodes)],
-      updated_at: new Date().toISOString(),
-    }).eq("id", questId);
-
     // Get existing discoveries for dedup
     const { data: existingDisc } = await supabase
       .from("discoveries")
@@ -357,15 +432,28 @@ serve(async (req) => {
     // Try to extract discoveries from output and lastStepSummary
     await parseIncrementalDiscoveries(supabase, questId, transcript, quest.profile, existingNames, existingUrls);
 
-    if (questStatus === "running" && existingUrls.size >= TARGET_DISCOVERY_COUNT) {
+    if (questStatus === "complete" && transcript) {
+      await parseAndStoreDiscoveries(supabase, questId, transcript, quest.profile, existingNames, existingUrls);
+    }
+
+    const { data: allDiscoveries } = await supabase
+      .from("discoveries")
+      .select("*")
+      .eq("quest_id", questId)
+      .order("alchemy_score", { ascending: false });
+
+    if (questStatus === "running" && (allDiscoveries || []).length >= TARGET_DISCOVERY_COUNT) {
       await stopSession(quest.session_id, BROWSER_USE_API_KEY);
       questStatus = "complete";
       visitedNodes.push("alchemy");
     }
 
-    if (questStatus === "complete" && transcript) {
-      await parseAndStoreDiscoveries(supabase, questId, transcript, quest.profile, existingNames, existingUrls);
-    }
+    await supabase.from("quests").update({
+      status: questStatus,
+      current_node: questStatus === "complete" ? "alchemy" : currentNode,
+      visited_nodes: [...new Set(visitedNodes)],
+      updated_at: new Date().toISOString(),
+    }).eq("id", questId);
 
     const { data: allMessages } = await supabase
       .from("quest_messages")
@@ -376,7 +464,7 @@ serve(async (req) => {
     return new Response(JSON.stringify({
       questId: quest.id, status: questStatus, currentNode: questStatus === "complete" ? "alchemy" : currentNode,
       visitedNodes: [...new Set(visitedNodes)],
-      liveUrl: quest.live_url, messages: allMessages || [], output: outputText || null,
+      liveUrl: quest.live_url, messages: allMessages || [], discoveries: allDiscoveries || [], output: outputText || null,
       stepCount,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
@@ -394,9 +482,7 @@ function isDuplicate(name: string, url: string, existingNames: Set<string>, exis
 }
 
 async function parseIncrementalDiscoveries(supabase: any, questId: string, allText: string, profile: any, existingNames: Set<string>, existingUrls: Set<string>) {
-  const giftFoundMatches = allText.match(/GIFT_FOUND:\s*(\[\s*\{[\s\S]*?\}\s*\])/g) || [];
-  const jsonMatches = allText.match(/\[\s*\{[\s\S]*?\}\s*\]/g) || [];
-  const allMatches = [...giftFoundMatches.map(m => m.replace(/^GIFT_FOUND:\s*/, '')), ...jsonMatches];
+  const allMatches = extractGiftPayloads(allText);
   const budget = profile.budget || 50;
 
   for (const match of allMatches) {
@@ -422,9 +508,10 @@ async function parseIncrementalDiscoveries(supabase: any, questId: string, allTe
 
 async function parseAndStoreDiscoveries(supabase: any, questId: string, output: string, profile: any, existingNames: Set<string>, existingUrls: Set<string>) {
   try {
-    const jsonMatch = output.match(/\[\s*\{[\s\S]*?\}\s*\]/);
-    if (jsonMatch) {
-      const gifts = JSON.parse(jsonMatch[0]);
+    const payloads = extractGiftPayloads(output);
+
+    for (const payload of payloads) {
+      const gifts = JSON.parse(payload);
       const newGifts = gifts.filter((g: any) => g.name && g.url && !isDuplicate(g.name, g.url, existingNames, existingUrls));
 
       if (newGifts.length > 0) {

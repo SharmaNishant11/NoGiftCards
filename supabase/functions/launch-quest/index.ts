@@ -44,25 +44,29 @@ Budget: $${budget} (find gifts ranging from $${Math.round(budget * 0.3)} to $${M
 Occasion: ${occasion}
 
 INSTRUCTIONS:
-1. Prioritize these stores first because they work well for this task:
+1. Your first priority is speed: get the first strong gift found and reported as fast as possible.
+2. Prioritize these stores first because they work well for this task:
    - uncommongoods.com
    - mcphee.com
    - offthewagonshop.com
    - giftsforyounow.com
    - yoursurprise.com/funny-gifts
    - zazzle.com
-2. Search Amazon.com for up to 2 gifts if you still need more variety. Look for well-reviewed products.
-3. Search 1-2 of these specialty stores for unique/funny gifts:
+3. Search Amazon.com for up to 2 gifts if you still need more variety. Look for well-reviewed products.
+4. Search 1-2 of these specialty stores for unique/funny gifts:
    - mcphee.com (weird/funny novelty gifts)
    - offthewagonshop.com (unique gifts)
    - giftsforyounow.com (personalized gifts)
    - yoursurprise.com/funny-gifts (funny personalized gifts)
    - zazzle.com (custom products)
+5. If a store is slow, blocked, or awkward, give up quickly and move on.
+6. Do not collect all 6 before reporting. Report each verified gift immediately.
 
 DO NOT search Etsy — it blocks automated browsing. If any site blocks you or takes too long, skip it quickly and move on.
 
 CRITICAL - OUTPUT FORMAT:
 After finding EACH gift, you MUST immediately output a plain-text JSON block so results appear one at a time in the live UI.
+The first GIFT_FOUND should happen as early as possible, ideally within your first few successful product-page visits.
 Use this exact format after each product page visit:
 
 GIFT_FOUND: [{"name": "Product Name", "price": 42.99, "url": "https://exact-url", "site": "UncommonGoods", "reason": "Why this is perfect", "selected_option": "Color: Blue"}]
@@ -74,6 +78,7 @@ CRITICAL REQUIREMENTS:
 - Copy the EXACT product URL from the browser address bar.
 - Each gift must be UNIQUE — no duplicates.
 - Output GIFT_FOUND after EACH product, not all at the end.
+- Never wait until the end to print multiple gifts together.
 - As soon as you have 6 strong unique gifts, stop browsing and finish the task.
 
 IMPORTANT: Only return REAL products with REAL URLs. Visit each product page to verify price and URL. Focus on unique, thoughtful, sometimes funny gifts — NOT generic stuff.`;

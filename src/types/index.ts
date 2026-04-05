@@ -75,6 +75,7 @@ export interface QuestStatusResponse {
   visitedNodes: string[];
   liveUrl: string | null;
   messages: QuestMessage[];
+  discoveries?: Discovery[];
   output?: string;
 }
 

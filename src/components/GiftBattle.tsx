@@ -17,7 +17,6 @@ const GiftBattle = ({ giftA, giftB, onCrown }: GiftBattleProps) => {
 
   return (
     <div className="space-y-3">
-      <h4 className="font-cinzel text-sm text-gold text-center tracking-wider">⚔️ THUNDERDOME: Two Gifts Enter, One Gift Leaves</h4>
       <div className="grid grid-cols-[1fr,auto,1fr] gap-3 items-center">
         {/* Gift A */}
         <div className={`parchment-card rounded-lg p-3 text-center transition-all duration-400 ${

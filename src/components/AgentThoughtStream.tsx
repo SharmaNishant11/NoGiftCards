@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 
 interface AgentThoughtStreamProps {
   extraLines?: string[];
+  isActive?: boolean;
 }
 
 // Clean raw agent output to be human readable
@@ -26,7 +27,7 @@ function cleanLine(raw: string): string {
   return s;
 }
 
-const AgentThoughtStream = ({ extraLines = [] }: AgentThoughtStreamProps) => {
+const AgentThoughtStream = ({ extraLines = [], isActive = true }: AgentThoughtStreamProps) => {
   const [visibleLines, setVisibleLines] = useState<string[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
   const seenLinesRef = useRef<Set<string>>(new Set());
@@ -67,7 +68,7 @@ const AgentThoughtStream = ({ extraLines = [] }: AgentThoughtStreamProps) => {
         style={{ background: '#0D0A1A' }}
       >
         {visibleLines.length === 0 ? (
-          <div className="text-muted-foreground/70 italic">Waiting for a real update from the AI...</div>
+          <div className="text-muted-foreground/70 italic">{isActive ? 'Waiting for a real update from the AI...' : 'All quiet. The AI is done.'}</div>
         ) : (
           visibleLines.map((line, i) => (
             <div key={i} className="text-gold/80 card-appear" style={{ animationDelay: '0s' }}>
@@ -75,7 +76,7 @@ const AgentThoughtStream = ({ extraLines = [] }: AgentThoughtStreamProps) => {
             </div>
           ))
         )}
-        <span className="text-gold cursor-blink">▊</span>
+        {isActive ? <span className="text-gold cursor-blink">▊</span> : <div className="mt-2 text-muted-foreground/60 italic">Done muttering.</div>}
       </div>
     </div>
   );

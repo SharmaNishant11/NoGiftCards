@@ -5,9 +5,7 @@ import AlchemyScoreBreakdown from './AlchemyScoreBreakdown';
 interface DiscoveryCardProps {
   gift: GiftCard;
   index: number;
-  isSaved: boolean;
   isInCart: boolean;
-  onSave: () => void;
   onAddToCart: () => void;
 }
 
@@ -18,16 +16,14 @@ const sourceBadgeColors: Record<string, string> = {
   Niche: 'bg-violet-900/30 text-violet-300 border-violet-500/30',
 };
 
-const DiscoveryCard = ({ gift, index, isSaved, isInCart, onSave, onAddToCart }: DiscoveryCardProps) => {
+const DiscoveryCard = ({ gift, index, isInCart, onAddToCart }: DiscoveryCardProps) => {
   const [expanded, setExpanded] = useState(false);
 
   const badgeColor = sourceBadgeColors[gift.source] || 'bg-secondary text-muted-foreground border-gold/20';
 
   return (
     <div
-      className={`parchment-card rounded-lg overflow-hidden card-appear ${
-        isSaved ? 'ring-1 ring-gold/50' : ''
-      } ${isInCart ? '!bg-navy border-gold/60' : ''}`}
+      className={`parchment-card rounded-lg overflow-hidden card-appear ${isInCart ? '!bg-navy border-gold/60' : ''}`}
       style={{ animationDelay: `${index * 0.15}s` }}
     >
       <div className="p-4 space-y-3">
@@ -72,18 +68,6 @@ const DiscoveryCard = ({ gift, index, isSaved, isInCart, onSave, onAddToCart }: 
 
         {/* Actions */}
         <div className="flex items-center gap-2 pt-2">
-          <button
-            onClick={onSave}
-            className={`text-xs font-crimson px-3 py-1.5 rounded-md border transition-all duration-250 ${
-              isSaved
-                ? 'border-gold bg-gold/10 text-gold'
-                : isInCart
-                  ? 'border-gold/30 text-foreground/70 hover:border-gold hover:text-gold'
-                  : 'border-card-foreground/20 text-card-foreground/60 hover:border-gold hover:text-gold-dark'
-            }`}
-          >
-            {isSaved ? '♥ Saved' : '♡ Save'}
-          </button>
           <button
             onClick={onAddToCart}
             className={`text-xs font-crimson px-3 py-1.5 rounded-md border transition-all duration-250 ${
