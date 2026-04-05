@@ -2,9 +2,9 @@ import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const stats = [
-  { emoji: '✨', value: 2847, label: 'Quests Completed' },
-  { emoji: '🎁', value: 14392, label: 'Gifts Discovered' },
-  { emoji: '⚗️', value: 98, label: 'Alchemy Match Rate', suffix: '%' },
+  { emoji: '😤', value: 7, label: 'Gift Cards Prevented' },
+  { emoji: '🎁', value: 42, label: 'Souls Understood' },
+  { emoji: '⚗️', value: 69, label: 'Nice Score', suffix: '%' },
 ];
 
 const features = [
