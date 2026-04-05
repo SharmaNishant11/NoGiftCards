@@ -121,7 +121,7 @@ const LandingPage = () => {
 
       <footer className="relative z-10 py-8 text-center border-t border-gold/10">
         <p className="font-crimson text-xs text-muted-foreground">
-          Powered by <span className="font-cinzel text-gold/50 tracking-wider">Browser Use</span> · <span className="font-cinzel text-gold/50 tracking-wider">Gemini</span> · <span className="font-cinzel text-gold/50 tracking-wider">Lovable</span>
+          Powered by <span className="font-cinzel text-gold/50 tracking-wider">Browser Use</span> · <span className="font-cinzel text-gold/50 tracking-wider">Gemini</span> · <span className="font-cinzel text-gold/50 tracking-wider">Lovable</span> · <span className="font-cinzel text-gold/50 tracking-wider">NoGiftCards</span>
         </p>
       </footer>
     </div>

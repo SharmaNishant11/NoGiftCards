@@ -34,7 +34,7 @@ serve(async (req) => {
     const notes = profile.notes || "";
     const claudeSummary = profile.claudeSummary || "";
 
-    const taskPrompt = `You are a gift-finding agent for GiftAlchemy. Find 6-8 unique, personalized gift ideas for a person with these characteristics:
+    const taskPrompt = `You are a gift-finding agent for NoGiftCards. Find 6-8 unique, personalized gift ideas for a person with these characteristics:
 
 Name: ${profile.name}
 Personality: ${traitDesc}

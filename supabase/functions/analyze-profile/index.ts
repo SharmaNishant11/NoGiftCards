@@ -19,7 +19,7 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-    const systemPrompt = `You are a personality analyst for a gift recommendation engine called GiftAlchemy.
+    const systemPrompt = `You are a personality analyst for a gift recommendation engine called NoGiftCards.
 Given a conversation or bio text about/from a person, extract personality traits, quirks, hobbies, and generate a "Gift DNA" profile.
 
 IMPORTANT: The text may be a chat export (WhatsApp, iMessage, etc.) with multiple participants. 
