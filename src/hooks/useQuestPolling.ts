@@ -3,11 +3,10 @@ import { QuestStatusResponse, Discovery, MapNode } from '@/types';
 
 const MAP_NODES_TEMPLATE: { id: string; emoji: string; label: string; key: string }[] = [
   { id: '1', emoji: '🏰', label: 'Base Camp', key: 'base' },
-  { id: '2', emoji: '🌿', label: 'Etsy Forest', key: 'etsy' },
-  { id: '3', emoji: '📦', label: 'Amazon Bazaar', key: 'amazon' },
-  { id: '4', emoji: '☕', label: 'Specialty Shops', key: 'specialty' },
-  { id: '5', emoji: '🎙️', label: 'Niche Stores', key: 'niche' },
-  { id: '6', emoji: '⚗️', label: 'Alchemy Score', key: 'alchemy' },
+  { id: '2', emoji: '🎪', label: 'UncommonGoods', key: 'specialty' },
+  { id: '3', emoji: '📦', label: 'Amazon', key: 'amazon' },
+  { id: '4', emoji: '🤪', label: 'Weird Stores', key: 'niche' },
+  { id: '5', emoji: '🔬', label: 'Scoring', key: 'alchemy' },
 ];
 
 export function useQuestPolling(questId: string | null) {
