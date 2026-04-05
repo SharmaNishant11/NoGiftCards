@@ -88,7 +88,7 @@ const QuestPage = () => {
     if (!questId || isMockMode) return;
     const shareUrl = `${window.location.origin}/quest?id=${questId}`;
     navigator.clipboard.writeText(shareUrl);
-    toast.success('🔗 Quest link copied! Share it with anyone.');
+    toast.success('🔗 Link copied! Now your friends can judge your gift-giving process.');
   };
 
   return (
@@ -100,7 +100,7 @@ const QuestPage = () => {
             {!isSharedView && (
               <button onClick={() => navigate('/profile')} className="text-gold/50 hover:text-gold transition-colors font-cinzel text-sm">← Profile</button>
             )}
-            <h1 className="font-cinzel text-xl text-gold">Quest Dashboard</h1>
+            <h1 className="font-cinzel text-xl text-gold">Mission Control (Very Official)</h1>
             {!isMockMode && status?.status === 'running' && (
               <span className="px-2 py-0.5 rounded-full text-[10px] font-cinzel bg-gold/20 text-gold border border-gold/30 gold-pulse">LIVE</span>
             )}
@@ -114,7 +114,7 @@ const QuestPage = () => {
           <div className="flex items-center gap-2">
             {!isMockMode && (
               <button onClick={shareQuest} className="btn-alchemy px-3 py-1.5 rounded-md text-xs">
-                📤 Share Quest
+                📤 Share This Masterpiece
               </button>
             )}
             {liveUrl && !isSharedView && (
@@ -149,7 +149,7 @@ const QuestPage = () => {
           {/* Center: Discoveries */}
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h3 className="font-cinzel text-sm text-gold tracking-wider">🔍 Discoveries</h3>
+              <h3 className="font-cinzel text-sm text-gold tracking-wider">🎁 Things That Aren't Gift Cards</h3>
               {gifts.length > 0 && (
                 <span className="text-xs font-crimson text-muted-foreground">{gifts.length} gifts found</span>
               )}
@@ -160,10 +160,10 @@ const QuestPage = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}
                 </div>
-                <p className="text-center font-crimson italic text-muted-foreground text-sm card-appear">⚗️ The agents are hunting...</p>
+                <p className="text-center font-crimson italic text-muted-foreground text-sm card-appear">🏃 An AI is literally browsing the internet for you right now. We live in the future.</p>
               </div>
             ) : gifts.length === 0 ? (
-              <EmptyState emoji="⚗️" message={isMockMode ? "Complete the profile to begin your quest" : "Waiting for discoveries..."} />
+              <EmptyState emoji="🫠" message={isMockMode ? "You haven't told us about anyone yet. We can't read minds. Yet." : "Waiting for discoveries..."} />
             ) : (
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -182,7 +182,7 @@ const QuestPage = () => {
             {/* Loading more indicator when quest is running but we already have some */}
             {!isMockMode && status?.status === 'running' && gifts.length > 0 && (
               <p className="text-center font-crimson italic text-muted-foreground text-sm gold-pulse">
-                ⚗️ Still hunting for more gifts...
+                🔍 Still digging. The AI just whispered "ooh what about this one" to itself.
               </p>
             )}
           </div>
@@ -196,7 +196,7 @@ const QuestPage = () => {
                 onCheckout={() => {
                   sessionStorage.setItem('selectedGifts', JSON.stringify(cart.map(c => c.gift)));
                   sessionStorage.setItem('orderData', JSON.stringify({
-                    orderNumber: `ALC-${Math.random().toString(36).substr(2, 8).toUpperCase()}`,
+                    orderNumber: `NGC-${Math.random().toString(36).substr(2, 8).toUpperCase()}`,
                     recipientName: profile.name,
                     giftName: cart.length === 1 ? cart[0].gift.name : `${cart.length} gifts`,
                     deliveryDate: profile.deliveryDate,
@@ -209,10 +209,10 @@ const QuestPage = () => {
             </div>
           ) : (
             <div className="space-y-4 p-4 rounded-xl border border-gold/20 bg-secondary/20">
-              <h3 className="font-cinzel text-sm text-gold">👀 Viewing Shared Quest</h3>
-              <p className="font-crimson text-xs text-muted-foreground">This quest was shared with you. Start your own quest to add gifts to cart!</p>
+              <h3 className="font-cinzel text-sm text-gold">👀 You're Spectating</h3>
+              <p className="font-crimson text-xs text-muted-foreground">Someone shared their gift-hunting session with you. You're basically a spectator at this point.</p>
               <button onClick={() => navigate('/profile')} className="btn-alchemy w-full py-2 rounded-lg font-cinzel text-xs">
-                🔮 Start Your Own Quest
+                🚀 Start Your Own Mission
               </button>
             </div>
           )}

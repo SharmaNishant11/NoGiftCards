@@ -47,7 +47,7 @@ const QuestCart = ({ items, onRemove, onCheckout }: QuestCartProps) => {
       </div>
 
       <button onClick={onCheckout} className="btn-alchemy w-full py-3 rounded-lg font-cinzel text-sm tracking-wider gold-pulse">
-        ⚗️ View Buy Links →
+        💳 Take My Money →
       </button>
     </div>
   );

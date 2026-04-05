@@ -56,7 +56,7 @@ const GiftBattle = ({ giftA, giftB, onCrown }: GiftBattleProps) => {
       </div>
       {winner && (
         <p className="text-xs font-crimson italic text-muted-foreground text-center card-appear">
-          Agent is refining your taste profile...
+          Noted. We're updating your permanent file.
         </p>
       )}
     </div>

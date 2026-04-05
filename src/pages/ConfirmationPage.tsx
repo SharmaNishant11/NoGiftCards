@@ -10,7 +10,7 @@ interface GiftLink {
   source: string;
 }
 
-const steps = ['Quest Complete', 'Browse Links', 'Purchase', 'Gift Received'];
+const steps = ['Mission Complete', 'Browse Links', 'Purchase', 'Gift Received'];
 
 const ConfirmationPage = () => {
   const navigate = useNavigate();
@@ -18,7 +18,7 @@ const ConfirmationPage = () => {
   const orderData = useMemo(() => {
     const stored = sessionStorage.getItem('orderData');
     return stored ? JSON.parse(stored) : {
-      orderNumber: 'ALC-DEMO1234',
+      orderNumber: 'NGC-DEMO1234',
       recipientName: 'Alex',
       giftName: 'Cold Brew Ritual Kit',
       deliveryDate: new Date(Date.now() + 5 * 86400000).toISOString().split('T')[0],
@@ -35,7 +35,7 @@ const ConfirmationPage = () => {
     if (orderData.questId) {
       const shareUrl = `${window.location.origin}/quest?id=${orderData.questId}`;
       navigator.clipboard.writeText(shareUrl);
-      toast.success('🔗 Quest link copied!');
+      toast.success('🔗 Link copied!');
     } else {
       navigator.clipboard.writeText(window.location.href);
       toast.success('📋 Link copied!');
@@ -45,10 +45,10 @@ const ConfirmationPage = () => {
   return (
     <div className="min-h-screen flex items-center justify-center p-6 page-enter">
       <div className="max-w-lg w-full space-y-8 text-center">
-        <div className="text-7xl gold-pulse" style={{ animation: 'goldPulse 1.5s ease-in-out infinite, countPulse 0.6s ease 0.2s' }}>⚗️</div>
-        <h1 className="font-cinzel text-3xl text-gold">Quest Complete, Brave Gifter!</h1>
+        <div className="text-7xl gold-pulse" style={{ animation: 'goldPulse 1.5s ease-in-out infinite, countPulse 0.6s ease 0.2s' }}>🏆</div>
+        <h1 className="font-cinzel text-3xl text-gold">You Actually Did It. You Absolute Legend.</h1>
         <p className="font-crimson italic text-muted-foreground">
-          Your quest for {orderData.recipientName} has been fulfilled. Here are your curated gift links!
+          You didn't give {orderData.recipientName} a gift card. Your ancestors are proud.
         </p>
 
         <div className="parchment-card rounded-xl p-6 space-y-4 text-left">
@@ -71,7 +71,7 @@ const ConfirmationPage = () => {
               </a>
             ))}
           </div>
-          <p className="text-[10px] font-crimson italic text-card-foreground/40 text-center">Click each link to buy directly from the store</p>
+          <p className="text-[10px] font-crimson italic text-card-foreground/40 text-center">Click to buy. We don't take a cut. We're just here for the emotional satisfaction.</p>
         </div>
 
         <div className="flex items-center justify-between px-4">
@@ -92,10 +92,10 @@ const ConfirmationPage = () => {
 
         <div className="flex flex-col gap-3">
           <button onClick={() => navigate('/profile')} className="btn-alchemy py-3 rounded-lg font-cinzel text-sm tracking-wider w-full">
-            🔮 Start a New Quest
+            🔁 Do It Again (For Someone Else, Hopefully)
           </button>
           <button onClick={handleShare} className="btn-alchemy py-2.5 rounded-lg font-cinzel text-xs tracking-wider w-full opacity-80">
-            📤 Share this Quest
+            📤 Share This Masterpiece
           </button>
         </div>
       </div>

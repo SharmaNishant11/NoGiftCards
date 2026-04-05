@@ -14,7 +14,7 @@ const AdventureMap = ({ nodes, recipientName, occasion, budget }: AdventureMapPr
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="font-cinzel text-gold text-sm tracking-wider">🗺️ Adventure Map</h3>
+        <h3 className="font-cinzel text-gold text-sm tracking-wider">🗺️ Where The AI Has Been (It Gets Around)</h3>
         <div className="flex items-center gap-3 text-xs font-crimson">
           <span className="text-foreground">{recipientName}</span>
           <span className="px-2 py-0.5 rounded-full border border-gold/30 text-gold/80">{occasion}</span>
