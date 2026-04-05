@@ -11,7 +11,7 @@ const QuestCart = ({ items, onRemove, onCheckout }: QuestCartProps) => {
   const subtotal = items.reduce((sum, item) => sum + item.gift.priceValue, 0);
 
   if (items.length === 0) {
-    return <EmptyState emoji="🛒" message="Your cauldron is empty. Add gifts from your discoveries." />;
+    return <EmptyState emoji="🛒" message="Nothing here yet. Go add some gifts before we judge you." />;
   }
 
   return (
