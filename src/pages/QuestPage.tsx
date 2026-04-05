@@ -5,7 +5,7 @@ import { CartItem, GiftCard, Discovery, MapNode } from '@/types';
 import { useQuestPolling } from '@/hooks/useQuestPolling';
 import AdventureMap from '@/components/AdventureMap';
 import AgentThoughtStream from '@/components/AgentThoughtStream';
-import NarratorBox from '@/components/NarratorBox';
+
 import RedirectBar from '@/components/RedirectBar';
 import DiscoveryCard from '@/components/DiscoveryCard';
 import GiftBattle from '@/components/GiftBattle';
@@ -142,7 +142,7 @@ const QuestPage = () => {
           {/* Left: Agent Intelligence */}
           <div className="space-y-4">
             <AgentThoughtStream extraLines={isMockMode ? [] : thoughts} />
-            {!isMockMode && <NarratorBox />}
+            
             {!isSharedView && <RedirectBar onRedirect={handleRedirect} lastRedirect={lastRedirect} />}
           </div>
 

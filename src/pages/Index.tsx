@@ -2,9 +2,9 @@ import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const stats = [
-  { emoji: '✨', value: 2847, label: 'Quests Completed' },
-  { emoji: '🎁', value: 14392, label: 'Gifts Discovered' },
-  { emoji: '⚗️', value: 98, label: 'Alchemy Match Rate', suffix: '%' },
+  { emoji: '😤', value: 7, label: 'Gift Cards Prevented' },
+  { emoji: '🎁', value: 42, label: 'Souls Understood' },
+  { emoji: '⚗️', value: 69, label: 'Nice Score', suffix: '%' },
 ];
 
 const features = [
@@ -115,13 +115,13 @@ const LandingPage = () => {
 
       <section className="relative z-10 py-10 text-center">
         <p className="font-crimson text-muted-foreground text-sm">
-          Used by gift-givers at <span className="text-gold/70">Google</span> · <span className="text-gold/70">Etsy</span> · <span className="text-gold/70">Anthropic</span> · and more
+          Trusted by people who panic-Googled <span className="text-gold/70">"good gifts for someone who has everything"</span> at <span className="text-gold/70">2am</span>
         </p>
       </section>
 
       <footer className="relative z-10 py-8 text-center border-t border-gold/10">
         <p className="font-crimson text-xs text-muted-foreground">
-          Powered by <span className="font-cinzel text-gold/50 tracking-wider">Browser Use</span> · <span className="font-cinzel text-gold/50 tracking-wider">Gemini</span> · <span className="font-cinzel text-gold/50 tracking-wider">Lovable</span>
+          Powered by <span className="font-cinzel text-gold/50 tracking-wider">Browser Use</span> · <span className="font-cinzel text-gold/50 tracking-wider">Gemini</span> · <span className="font-cinzel text-gold/50 tracking-wider">Lovable</span> · <span className="font-cinzel text-gold/50 tracking-wider">NoGiftCards</span>
         </p>
       </footer>
     </div>
