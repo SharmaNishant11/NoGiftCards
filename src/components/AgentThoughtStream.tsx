@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-import { mockThoughtStream } from '@/data/mockData';
 
 interface AgentThoughtStreamProps {
   extraLines?: string[];
@@ -29,25 +28,29 @@ function cleanLine(raw: string): string {
 
 const AgentThoughtStream = ({ extraLines = [] }: AgentThoughtStreamProps) => {
   const [visibleLines, setVisibleLines] = useState<string[]>([]);
-  const allLines = [...mockThoughtStream, ...extraLines];
   const containerRef = useRef<HTMLDivElement>(null);
+  const seenLinesRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    let idx = 0;
-    const timer = setInterval(() => {
-      if (idx < allLines.length) {
-        const cleaned = cleanLine(allLines[idx]);
-        if (cleaned) {
-          setVisibleLines(prev => [...prev, cleaned]);
-        }
-        idx++;
-      } else {
-        idx = 0;
-        setVisibleLines([]);
-      }
-    }, 1500);
-    return () => clearInterval(timer);
-  }, [extraLines.length]);
+    if (extraLines.length === 0) {
+      seenLinesRef.current.clear();
+      setVisibleLines([]);
+      return;
+    }
+
+    const nextLines = extraLines
+      .map(cleanLine)
+      .filter((line): line is string => Boolean(line))
+      .filter((line) => {
+        if (seenLinesRef.current.has(line)) return false;
+        seenLinesRef.current.add(line);
+        return true;
+      });
+
+    if (nextLines.length > 0) {
+      setVisibleLines((prev) => [...prev, ...nextLines]);
+    }
+  }, [extraLines]);
 
   useEffect(() => {
     if (containerRef.current) {
@@ -63,11 +66,15 @@ const AgentThoughtStream = ({ extraLines = [] }: AgentThoughtStreamProps) => {
         className="rounded-lg p-4 h-48 overflow-y-auto font-mono text-xs leading-relaxed"
         style={{ background: '#0D0A1A' }}
       >
-        {visibleLines.map((line, i) => (
-          <div key={i} className="text-gold/80 card-appear" style={{ animationDelay: '0s' }}>
-            {line}
-          </div>
-        ))}
+        {visibleLines.length === 0 ? (
+          <div className="text-muted-foreground/70 italic">Waiting for a real update from the AI...</div>
+        ) : (
+          visibleLines.map((line, i) => (
+            <div key={i} className="text-gold/80 card-appear" style={{ animationDelay: '0s' }}>
+              {line}
+            </div>
+          ))
+        )}
         <span className="text-gold cursor-blink">▊</span>
       </div>
     </div>

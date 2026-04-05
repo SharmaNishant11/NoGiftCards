@@ -7,6 +7,8 @@ const corsHeaders = {
 };
 
 const BROWSER_USE_API = "https://api.browser-use.com/api/v3";
+const MAX_QUEST_DURATION = 20 * 60 * 1000;
+const TARGET_DISCOVERY_COUNT = 6;
 
 function inferCurrentNode(stepCount: number, messages: any[]): { currentNode: string; visitedNodes: string[] } {
   const visited: string[] = ["base"];
@@ -35,6 +37,9 @@ function cleanAgentMessage(raw: string): string {
   cleaned = cleaned.replace(/GIFT_FOUND:\s*\[[\s\S]*?\]/g, "[found a gift!]");
   // Strip long URLs
   cleaned = cleaned.replace(/https?:\/\/\S{60,}/g, "[link]");
+  cleaned = cleaned.replace(/^python:\s*/i, "");
+  cleaned = cleaned.replace(/^getting browser state$/i, "Checking the page");
+  cleaned = cleaned.replace(/^running python code$/i, "Thinking...");
   // Clean whitespace
   cleaned = cleaned.replace(/\n{3,}/g, "\n").replace(/\s{3,}/g, " ").trim();
   // Skip empty/short
@@ -66,15 +71,130 @@ function guessEmoji(name: string): string {
 function normalizeUrl(url: string): string {
   try {
     const u = new URL(url);
-    // Remove tracking params
-    u.searchParams.delete("ref");
-    u.searchParams.delete("utm_source");
-    u.searchParams.delete("utm_medium");
-    u.searchParams.delete("utm_campaign");
+    u.hash = "";
+    u.search = "";
     return u.origin + u.pathname;
   } catch {
     return url.toLowerCase().trim();
   }
+}
+
+function extractStrings(value: unknown, acc: string[] = []): string[] {
+  if (typeof value === "string") {
+    acc.push(value);
+    return acc;
+  }
+
+  if (Array.isArray(value)) {
+    value.forEach((item) => extractStrings(item, acc));
+    return acc;
+  }
+
+  if (value && typeof value === "object") {
+    Object.values(value as Record<string, unknown>).forEach((item) => extractStrings(item, acc));
+  }
+
+  return acc;
+}
+
+function uniqueStrings(lines: string[]): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || seen.has(trimmed)) continue;
+    seen.add(trimmed);
+    result.push(trimmed);
+  }
+
+  return result;
+}
+
+async function fetchSessionMessages(sessionId: string, apiKey: string) {
+  try {
+    const response = await fetch(`${BROWSER_USE_API}/sessions/${sessionId}/messages?limit=100`, {
+      headers: { "X-Browser-Use-API-Key": apiKey },
+    });
+
+    if (!response.ok) {
+      console.error("Browser Use messages error:", response.status);
+      return [];
+    }
+
+    const payload = await response.json();
+    const messages = Array.isArray(payload)
+      ? payload
+      : payload.messages || payload.items || payload.data || [];
+
+    return Array.isArray(messages) ? messages : [];
+  } catch (error) {
+    console.error("Failed to fetch Browser Use messages:", error);
+    return [];
+  }
+}
+
+async function stopSession(sessionId: string, apiKey: string) {
+  try {
+    await fetch(`${BROWSER_USE_API}/sessions/${sessionId}/stop`, {
+      method: "POST",
+      headers: {
+        "X-Browser-Use-API-Key": apiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ strategy: "session" }),
+    });
+  } catch (error) {
+    console.error("Failed to stop Browser Use session:", error);
+  }
+}
+
+async function stopSessionIfStillRunning(sessionId: string, apiKey: string) {
+  try {
+    const response = await fetch(`${BROWSER_USE_API}/sessions/${sessionId}`, {
+      headers: { "X-Browser-Use-API-Key": apiKey },
+    });
+
+    if (!response.ok) return;
+
+    const session = await response.json();
+    if (session.status === "running") {
+      await stopSession(sessionId, apiKey);
+    }
+  } catch (error) {
+    console.error("Failed to stop orphaned Browser Use session:", error);
+  }
+}
+
+function buildTranscript(lastStepSummary: string, outputText: string, sessionMessages: any[]) {
+  const extracted = uniqueStrings(extractStrings(sessionMessages));
+  return [lastStepSummary, outputText, ...extracted].filter(Boolean).join("\n");
+}
+
+function buildDiscoveryRow(gift: any, idx: number, budget: number, questId: string) {
+  const price = typeof gift.price === "number"
+    ? gift.price
+    : parseFloat(String(gift.price).replace(/[^0-9.]/g, "")) || 0;
+  const budgetFit = Math.max(0, 100 - Math.abs(price - budget) / budget * 100);
+  const baseScore = 95 - idx * 3;
+
+  return {
+    quest_id: questId,
+    name: gift.selected_option ? `${gift.name} (${gift.selected_option})` : gift.name,
+    emoji: guessEmoji(gift.name),
+    site: gift.site || "Unknown",
+    price,
+    url: gift.url,
+    why_text: gift.reason || "A thoughtful gift match.",
+    alchemy_score: Math.min(99, Math.max(60, Math.round((baseScore + budgetFit) / 2))),
+    image_url: gift.image_url || null,
+    sub_scores: {
+      personalityMatch: Math.min(99, baseScore + Math.floor(Math.random() * 5)),
+      uniqueness: Math.min(99, 70 + Math.floor(Math.random() * 25)),
+      budgetFit: Math.round(budgetFit),
+      surpriseFactor: Math.min(99, 65 + Math.floor(Math.random() * 30)),
+    },
+  };
 }
 
 serve(async (req) => {
@@ -109,8 +229,11 @@ serve(async (req) => {
       });
     }
 
-    // If already complete, return cached status
     if (quest.status === "complete" || quest.status === "error") {
+      if (quest.session_id) {
+        await stopSessionIfStillRunning(quest.session_id, BROWSER_USE_API_KEY);
+      }
+
       const { data: messages } = await supabase
         .from("quest_messages")
         .select("*")
@@ -129,12 +252,18 @@ serve(async (req) => {
       });
     }
 
-    // Check if quest has been running too long (10 min timeout)
     const questAge = Date.now() - new Date(quest.created_at).getTime();
-    const MAX_QUEST_DURATION = 10 * 60 * 1000;
 
     if (questAge > MAX_QUEST_DURATION) {
-      await supabase.from("quests").update({ status: "complete", current_node: "alchemy", updated_at: new Date().toISOString() }).eq("id", questId);
+      if (quest.session_id) {
+        await stopSession(quest.session_id, BROWSER_USE_API_KEY);
+      }
+
+      await supabase.from("quests").update({
+        status: "complete",
+        current_node: "alchemy",
+        updated_at: new Date().toISOString(),
+      }).eq("id", questId);
 
       const { data: messages } = await supabase
         .from("quest_messages")
@@ -149,10 +278,12 @@ serve(async (req) => {
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Poll Browser Use session
-    const buResponse = await fetch(`${BROWSER_USE_API}/sessions/${quest.session_id}`, {
-      headers: { "X-Browser-Use-API-Key": BROWSER_USE_API_KEY },
-    });
+    const [buResponse, sessionMessages] = await Promise.all([
+      fetch(`${BROWSER_USE_API}/sessions/${quest.session_id}`, {
+        headers: { "X-Browser-Use-API-Key": BROWSER_USE_API_KEY },
+      }),
+      fetchSessionMessages(quest.session_id, BROWSER_USE_API_KEY),
+    ]);
 
     if (!buResponse.ok) {
       console.error("Browser Use poll error:", buResponse.status);
@@ -173,8 +304,12 @@ serve(async (req) => {
 
     const stepCount = buSession.stepCount || 0;
     const lastStepSummary = buSession.lastStepSummary || "";
+    const outputText = typeof buSession.output === "string"
+      ? buSession.output
+      : JSON.stringify(buSession.output || "");
+    const transcript = buildTranscript(lastStepSummary, outputText, sessionMessages);
 
-    const { currentNode, visitedNodes } = inferCurrentNode(stepCount, [{ summary: lastStepSummary }]);
+    const { currentNode, visitedNodes } = inferCurrentNode(stepCount, [{ summary: transcript }]);
     if (questStatus === "complete") {
       visitedNodes.push("alchemy");
     }
@@ -220,17 +355,18 @@ serve(async (req) => {
     const existingUrls = new Set((existingDisc || []).map((d: any) => normalizeUrl(d.url)));
 
     // Try to extract discoveries from output and lastStepSummary
-    const outputText = buSession.output || "";
-    const allText = [lastStepSummary, outputText].join("\n");
+    await parseIncrementalDiscoveries(supabase, questId, transcript, quest.profile, existingNames, existingUrls);
 
-    await parseIncrementalDiscoveries(supabase, questId, allText, quest.profile, existingNames, existingUrls);
-
-    // If complete and we have output, do final thorough parse
-    if (questStatus === "complete" && outputText) {
-      await parseAndStoreDiscoveries(supabase, questId, outputText, quest.profile, existingNames, existingUrls);
+    if (questStatus === "running" && existingUrls.size >= TARGET_DISCOVERY_COUNT) {
+      await stopSession(quest.session_id, BROWSER_USE_API_KEY);
+      questStatus = "complete";
+      visitedNodes.push("alchemy");
     }
 
-    // Get all messages for response
+    if (questStatus === "complete" && transcript) {
+      await parseAndStoreDiscoveries(supabase, questId, transcript, quest.profile, existingNames, existingUrls);
+    }
+
     const { data: allMessages } = await supabase
       .from("quest_messages")
       .select("*")
@@ -258,11 +394,10 @@ function isDuplicate(name: string, url: string, existingNames: Set<string>, exis
 }
 
 async function parseIncrementalDiscoveries(supabase: any, questId: string, allText: string, profile: any, existingNames: Set<string>, existingUrls: Set<string>) {
-  // Look for GIFT_FOUND: markers first
   const giftFoundMatches = allText.match(/GIFT_FOUND:\s*(\[\s*\{[\s\S]*?\}\s*\])/g) || [];
-  // Also look for standalone JSON arrays
   const jsonMatches = allText.match(/\[\s*\{[\s\S]*?\}\s*\]/g) || [];
   const allMatches = [...giftFoundMatches.map(m => m.replace(/^GIFT_FOUND:\s*/, '')), ...jsonMatches];
+  const budget = profile.budget || 50;
 
   for (const match of allMatches) {
     try {
@@ -273,30 +408,7 @@ async function parseIncrementalDiscoveries(supabase: any, questId: string, allTe
       const newGifts = validGifts.filter((g: any) => !isDuplicate(g.name, g.url, existingNames, existingUrls));
 
       if (newGifts.length > 0) {
-        const discoveries = newGifts.map((gift: any, idx: number) => {
-          const price = typeof gift.price === "number" ? gift.price : parseFloat(String(gift.price).replace(/[^0-9.]/g, "")) || 0;
-          const budget = profile.budget || 50;
-          const budgetFit = Math.max(0, 100 - Math.abs(price - budget) / budget * 100);
-          const baseScore = 95 - idx * 3;
-
-          return {
-            quest_id: questId,
-            name: gift.selected_option ? `${gift.name} (${gift.selected_option})` : gift.name,
-            emoji: guessEmoji(gift.name),
-            site: gift.site || "Unknown",
-            price,
-            url: gift.url,
-            why_text: gift.reason || "A thoughtful gift match.",
-            alchemy_score: Math.min(99, Math.max(60, Math.round((baseScore + budgetFit) / 2))),
-            image_url: gift.image_url || null,
-            sub_scores: {
-              personalityMatch: Math.min(99, baseScore + Math.floor(Math.random() * 5)),
-              uniqueness: Math.min(99, 70 + Math.floor(Math.random() * 25)),
-              budgetFit: Math.round(budgetFit),
-              surpriseFactor: Math.min(99, 65 + Math.floor(Math.random() * 30)),
-            },
-          };
-        });
+        const discoveries = newGifts.map((gift: any, idx: number) => buildDiscoveryRow(gift, idx, budget, questId));
 
         await supabase.from("discoveries").insert(discoveries);
         discoveries.forEach((d: any) => {
@@ -316,27 +428,8 @@ async function parseAndStoreDiscoveries(supabase: any, questId: string, output: 
       const newGifts = gifts.filter((g: any) => g.name && g.url && !isDuplicate(g.name, g.url, existingNames, existingUrls));
 
       if (newGifts.length > 0) {
-        const discoveries = newGifts.map((gift: any, idx: number) => {
-          const price = typeof gift.price === "number" ? gift.price : parseFloat(String(gift.price).replace(/[^0-9.]/g, "")) || 0;
-          const budget = profile.budget || 50;
-          const budgetFit = Math.max(0, 100 - Math.abs(price - budget) / budget * 100);
-          const baseScore = 95 - idx * 3;
-
-          return {
-            quest_id: questId,
-            name: gift.selected_option ? `${gift.name} (${gift.selected_option})` : gift.name,
-            emoji: guessEmoji(gift.name),
-            site: gift.site || "Unknown", price, url: gift.url,
-            why_text: gift.reason || "A thoughtful gift match.",
-            alchemy_score: Math.min(99, Math.max(60, Math.round((baseScore + budgetFit) / 2))),
-            sub_scores: {
-              personalityMatch: Math.min(99, baseScore + Math.floor(Math.random() * 5)),
-              uniqueness: Math.min(99, 70 + Math.floor(Math.random() * 25)),
-              budgetFit: Math.round(budgetFit),
-              surpriseFactor: Math.min(99, 65 + Math.floor(Math.random() * 30)),
-            },
-          };
-        });
+        const budget = profile.budget || 50;
+        const discoveries = newGifts.map((gift: any, idx: number) => buildDiscoveryRow(gift, idx, budget, questId));
         await supabase.from("discoveries").insert(discoveries);
         return;
       }
