@@ -67,6 +67,69 @@ function normalizeUrl(url: string): string {
   catch { return url.toLowerCase().trim(); }
 }
 
+function matchesPlaceholder(value: unknown, patterns: RegExp[]): boolean {
+  return typeof value === "string" && patterns.some((pattern) => pattern.test(value.trim()));
+}
+
+function hasValidProductUrl(url: unknown): boolean {
+  if (typeof url !== "string" || !url.trim()) return false;
+
+  try {
+    const parsed = new URL(url);
+    const blockedHosts = new Set(["exact-url", "example.com", "placeholder.com", "localhost"]);
+
+    return (
+      (parsed.protocol === "http:" || parsed.protocol === "https:") &&
+      parsed.hostname.includes(".") &&
+      !blockedHosts.has(parsed.hostname.toLowerCase())
+    );
+  } catch {
+    return false;
+  }
+}
+
+function isRealGiftCandidate(gift: any): boolean {
+  const price = typeof gift?.price === "number"
+    ? gift.price
+    : parseFloat(String(gift?.price ?? "").replace(/[^0-9.]/g, ""));
+
+  if (!Number.isFinite(price) || price <= 0) return false;
+  if (!hasValidProductUrl(gift?.url)) return false;
+
+  if (matchesPlaceholder(gift?.name, [
+    /^product name(?:\b|\s|\()/i,
+    /^gift name(?:\b|\s|\()/i,
+    /^item name(?:\b|\s|\()/i,
+    /^name$/i,
+    /lorem ipsum/i,
+  ])) return false;
+
+  if (matchesPlaceholder(gift?.reason, [
+    /^why this is perfect[.!]*$/i,
+    /^why it's perfect[.!]*$/i,
+    /^reason here[.!]*$/i,
+    /^description here[.!]*$/i,
+    /^add reason/i,
+  ])) return false;
+
+  if (matchesPlaceholder(gift?.site, [
+    /^site name$/i,
+    /^store name$/i,
+  ])) return false;
+
+  return true;
+}
+
+function isRealDiscoveryRow(discovery: any): boolean {
+  return isRealGiftCandidate({
+    name: discovery?.name,
+    price: discovery?.price,
+    url: discovery?.url,
+    site: discovery?.site,
+    reason: discovery?.why_text,
+  });
+}
+
 function isDuplicate(name: string, url: string, existingNames: Set<string>, existingUrls: Set<string>): boolean {
   return existingNames.has(name.toLowerCase()) || existingUrls.has(normalizeUrl(url));
 }
@@ -217,6 +280,7 @@ function extractAndInsertGifts(
 
         for (const gift of gifts) {
           if (!gift.name || !gift.url || gift.price === undefined) continue;
+          if (!isRealGiftCandidate(gift)) continue;
           if (isDuplicate(gift.name, gift.url, existingNames, existingUrls)) continue;
 
           const row = buildDiscoveryRow(gift, newDiscoveries.length, budget, questId);
@@ -257,7 +321,12 @@ async function parseWithAI(supabase: any, questId: string, output: string, profi
       if (jsonMatch) {
         const gifts = JSON.parse(jsonMatch[0]);
         const budget = profile.budget || 50;
-        const newGifts = gifts.filter((g: any) => g.name && g.url && !isDuplicate(g.name, g.url, existingNames, existingUrls));
+        const newGifts = gifts.filter((g: any) => (
+          g.name &&
+          g.url &&
+          isRealGiftCandidate(g) &&
+          !isDuplicate(g.name, g.url, existingNames, existingUrls)
+        ));
         if (newGifts.length > 0) {
           const discoveries = newGifts.map((g: any, i: number) => buildDiscoveryRow(g, i, budget, questId));
           await supabase.from("discoveries").insert(discoveries);
@@ -314,10 +383,12 @@ serve(async (req) => {
         supabase.from("discoveries").select("*").eq("quest_id", questId).order("alchemy_score", { ascending: false }),
       ]);
 
+      const validDiscoveries = (discoveries || []).filter(isRealDiscoveryRow);
+
       return new Response(JSON.stringify({
         questId: quest.id, status: quest.status,
         currentNode: quest.current_node, visitedNodes: quest.visited_nodes,
-        liveUrl: quest.live_url, messages: messages || [], discoveries: discoveries || [],
+        liveUrl: quest.live_url, messages: messages || [], discoveries: validDiscoveries,
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
@@ -332,10 +403,12 @@ serve(async (req) => {
         supabase.from("discoveries").select("*").eq("quest_id", questId).order("alchemy_score", { ascending: false }),
       ]);
 
+      const validDiscoveries = (discoveries || []).filter(isRealDiscoveryRow);
+
       return new Response(JSON.stringify({
         questId: quest.id, status: "complete",
         currentNode: "alchemy", visitedNodes: [...(quest.visited_nodes || []), "alchemy"],
-        liveUrl: quest.live_url, messages: messages || [], discoveries: discoveries || [],
+        liveUrl: quest.live_url, messages: messages || [], discoveries: validDiscoveries,
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
@@ -396,11 +469,12 @@ serve(async (req) => {
     // ── Extract new discoveries ──────────────────────────────────────
     const { data: existingDisc } = await supabase
       .from("discoveries")
-      .select("name, url")
+      .select("name, url, why_text, site, price")
       .eq("quest_id", questId);
 
-    const existingNames = new Set((existingDisc || []).map((d: any) => d.name.toLowerCase()));
-    const existingUrls = new Set((existingDisc || []).map((d: any) => normalizeUrl(d.url)));
+    const validExistingDisc = (existingDisc || []).filter(isRealDiscoveryRow);
+    const existingNames = new Set(validExistingDisc.map((d: any) => d.name.toLowerCase()));
+    const existingUrls = new Set(validExistingDisc.map((d: any) => normalizeUrl(d.url)));
 
     const newRows = extractAndInsertGifts(allTextsForExtraction, quest.profile?.budget || 50, questId, existingNames, existingUrls);
     if (newRows.length > 0) {
@@ -409,7 +483,7 @@ serve(async (req) => {
     }
 
     // ── AI fallback on completion if nothing was found ────────────────
-    if (questStatus === "complete" && (existingDisc || []).length === 0 && newRows.length === 0 && buSession.output) {
+    if (questStatus === "complete" && validExistingDisc.length === 0 && newRows.length === 0 && buSession.output) {
       const outputStr = typeof buSession.output === "string" ? buSession.output : JSON.stringify(buSession.output);
       await parseWithAI(supabase, questId, outputStr, quest.profile, existingNames, existingUrls);
     }
@@ -421,7 +495,9 @@ serve(async (req) => {
       .eq("quest_id", questId)
       .order("alchemy_score", { ascending: false });
 
-    if (questStatus === "running" && (allDiscoveries || []).length >= TARGET_DISCOVERY_COUNT) {
+    const validDiscoveries = (allDiscoveries || []).filter(isRealDiscoveryRow);
+
+    if (questStatus === "running" && validDiscoveries.length >= TARGET_DISCOVERY_COUNT) {
       console.log("Target reached, stopping session");
       await stopSession(quest.session_id, BROWSER_USE_API_KEY);
       questStatus = "complete";
@@ -450,7 +526,7 @@ serve(async (req) => {
       visitedNodes: [...new Set(visitedNodes)],
       liveUrl: quest.live_url,
       messages: allMessages || [],
-      discoveries: allDiscoveries || [],
+      discoveries: validDiscoveries,
       stepCount,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {

@@ -67,6 +67,7 @@ DO NOT search Etsy — it blocks automated browsing. If any site blocks you or t
 CRITICAL - OUTPUT FORMAT:
 After finding EACH gift, you MUST immediately output a plain-text JSON block so results appear one at a time in the live UI.
 The first GIFT_FOUND should happen as early as possible, ideally within your first few successful product-page visits.
+The JSON example below is only a schema example — NEVER copy its literal values.
 Use this exact format after each product page visit:
 
 GIFT_FOUND: [{"name": "Product Name", "price": 42.99, "url": "https://exact-url", "site": "UncommonGoods", "reason": "Why this is perfect", "selected_option": "Color: Blue"}]
@@ -80,6 +81,7 @@ CRITICAL REQUIREMENTS:
 - Output GIFT_FOUND after EACH product, not all at the end.
 - Never wait until the end to print multiple gifts together.
 - As soon as you have 6 strong unique gifts, stop browsing and finish the task.
+- Placeholder values like "Product Name", "Why this is perfect", and "https://exact-url" are INVALID and must never be returned.
 
 IMPORTANT: Only return REAL products with REAL URLs. Visit each product page to verify price and URL. Focus on unique, thoughtful, sometimes funny gifts — NOT generic stuff.`;
 
