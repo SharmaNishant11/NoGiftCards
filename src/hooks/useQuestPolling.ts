@@ -19,16 +19,22 @@ export function useQuestPolling(questId: string | null) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const prevDiscCountRef = useRef(0);
 
   const pollStatus = useCallback(async () => {
     if (!questId) return;
 
     try {
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/quest-status?questId=${questId}`;
-      const response = await fetch(url, {
-        headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-      });
+      const statusUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/quest-status?questId=${questId}`;
+      const discoveriesUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-discoveries?questId=${questId}`;
+
+      const [response, discResp] = await Promise.all([
+        fetch(statusUrl, {
+          headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+        }),
+        fetch(discoveriesUrl, {
+          headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+        }),
+      ]);
 
       if (!response.ok) throw new Error('Failed to fetch quest status');
       const statusData: QuestStatusResponse = await response.json();
@@ -36,9 +42,7 @@ export function useQuestPolling(questId: string | null) {
       setStatus(statusData);
       setError(null);
 
-      if (statusData.messages) {
-        setThoughts(statusData.messages.map(m => m.summary));
-      }
+      setThoughts(statusData.messages?.map(m => m.summary) || []);
 
       const visited = new Set(statusData.visitedNodes || []);
       const current = statusData.currentNode;
@@ -49,16 +53,9 @@ export function useQuestPolling(questId: string | null) {
           : n.key === current ? 'active' as const : 'queued' as const,
       })));
 
-      // Fetch discoveries
-      const discUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-discoveries?questId=${questId}`;
-      const discResp = await fetch(discUrl, {
-        headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-      });
-
       if (discResp.ok) {
         const discData = await discResp.json();
-        const newDisc = discData.discoveries || [];
-        setDiscoveries(newDisc);
+        setDiscoveries(discData.discoveries || []);
       }
 
       setLoading(false);
@@ -77,23 +74,23 @@ export function useQuestPolling(questId: string | null) {
   }, [questId]);
 
   useEffect(() => {
-    if (!questId) return;
+    if (!questId) {
+      setStatus(null);
+      setDiscoveries([]);
+      setThoughts([]);
+      setMapNodes(MAP_NODES_TEMPLATE.map(n => ({ id: n.id, emoji: n.emoji, label: n.label, status: 'queued' as const })));
+      setLoading(false);
+      setError(null);
+      return;
+    }
 
+    setLoading(true);
+    setError(null);
     pollStatus();
     intervalRef.current = setInterval(pollStatus, 3000);
 
-    // Client-side safety timeout: stop polling after 12 minutes
-    const safetyTimeout = setTimeout(() => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-      setStatus(prev => prev ? { ...prev, status: 'complete' } : prev);
-    }, 12 * 60 * 1000);
-
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
-      clearTimeout(safetyTimeout);
     };
   }, [questId, pollStatus]);
 

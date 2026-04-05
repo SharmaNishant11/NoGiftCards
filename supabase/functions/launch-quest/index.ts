@@ -34,7 +34,7 @@ serve(async (req) => {
     const notes = profile.notes || "";
     const claudeSummary = profile.claudeSummary || "";
 
-    const taskPrompt = `You are a gift-finding agent for NoGiftCards. Find 6-8 unique, personalized gift ideas for a person with these characteristics:
+    const taskPrompt = `You are a gift-finding agent for NoGiftCards. Find 6 unique, personalized gift ideas for a person with these characteristics:
 
 Name: ${profile.name}
 Personality: ${traitDesc}
@@ -44,8 +44,14 @@ Budget: $${budget} (find gifts ranging from $${Math.round(budget * 0.3)} to $${M
 Occasion: ${occasion}
 
 INSTRUCTIONS:
-1. Search UncommonGoods.com (uncommongoods.com) for 2-3 unique/creative gifts matching this personality.
-2. Search Amazon.com for 2 gifts. Look for well-reviewed products.
+1. Prioritize these stores first because they work well for this task:
+   - uncommongoods.com
+   - mcphee.com
+   - offthewagonshop.com
+   - giftsforyounow.com
+   - yoursurprise.com/funny-gifts
+   - zazzle.com
+2. Search Amazon.com for up to 2 gifts if you still need more variety. Look for well-reviewed products.
 3. Search 1-2 of these specialty stores for unique/funny gifts:
    - mcphee.com (weird/funny novelty gifts)
    - offthewagonshop.com (unique gifts)
@@ -53,10 +59,10 @@ INSTRUCTIONS:
    - yoursurprise.com/funny-gifts (funny personalized gifts)
    - zazzle.com (custom products)
 
-DO NOT search Etsy — it blocks automated browsing.
+DO NOT search Etsy — it blocks automated browsing. If any site blocks you or takes too long, skip it quickly and move on.
 
 CRITICAL - OUTPUT FORMAT:
-After finding EACH gift, you MUST immediately output a JSON block so results appear one at a time.
+After finding EACH gift, you MUST immediately output a plain-text JSON block so results appear one at a time in the live UI.
 Use this exact format after each product page visit:
 
 GIFT_FOUND: [{"name": "Product Name", "price": 42.99, "url": "https://exact-url", "site": "UncommonGoods", "reason": "Why this is perfect", "selected_option": "Color: Blue"}]
@@ -68,6 +74,7 @@ CRITICAL REQUIREMENTS:
 - Copy the EXACT product URL from the browser address bar.
 - Each gift must be UNIQUE — no duplicates.
 - Output GIFT_FOUND after EACH product, not all at the end.
+- As soon as you have 6 strong unique gifts, stop browsing and finish the task.
 
 IMPORTANT: Only return REAL products with REAL URLs. Visit each product page to verify price and URL. Focus on unique, thoughtful, sometimes funny gifts — NOT generic stuff.`;
 
