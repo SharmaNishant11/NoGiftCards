@@ -142,7 +142,7 @@ const QuestPage = () => {
           {/* Left: Agent Intelligence */}
           <div className="space-y-4">
             <AgentThoughtStream extraLines={isMockMode ? [] : thoughts} />
-            {!isMockMode && <NarratorBox />}
+            
             {!isSharedView && <RedirectBar onRedirect={handleRedirect} lastRedirect={lastRedirect} />}
           </div>
 
