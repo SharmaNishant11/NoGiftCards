@@ -27,7 +27,7 @@ const GiftBattle = ({ giftA, giftB, onCrown }: GiftBattleProps) => {
           <p className="font-cinzel text-xs text-card-foreground mt-1">{giftA.name}</p>
           <p className="text-gold-dark font-cinzel text-sm mt-1">{giftA.price}</p>
           {winner === giftA.id && <span className="text-lg">👑</span>}
-          {winner === giftB.id && <span className="text-xs font-crimson italic text-card-foreground/50">eliminated</span>}
+          {winner === giftB.id && <span className="text-xs font-crimson italic text-card-foreground/50">sent home crying</span>}
           {!winner && (
             <button onClick={() => handleCrown(giftA)} className="btn-alchemy text-[10px] px-3 py-1 rounded mt-2">
               Crown this gift 👑
