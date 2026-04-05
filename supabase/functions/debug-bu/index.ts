@@ -15,29 +15,58 @@ serve(async (req) => {
 
   const BU = "https://api.browser-use.com/api/v3";
 
-  const [sessResp, msgResp] = await Promise.all([
-    fetch(`${BU}/sessions/${sessionId}`, { headers: { "X-Browser-Use-API-Key": API_KEY } }),
-    fetch(`${BU}/sessions/${sessionId}/messages?limit=20`, { headers: { "X-Browser-Use-API-Key": API_KEY } }),
-  ]);
+  // Paginate all messages
+  let allMessages: any[] = [];
+  let cursor: string | undefined;
+  for (let page = 0; page < 10; page++) {
+    const msgUrl = cursor 
+      ? `${BU}/sessions/${sessionId}/messages?limit=50&cursor=${cursor}`
+      : `${BU}/sessions/${sessionId}/messages?limit=50`;
+    const msgResp = await fetch(msgUrl, { headers: { "X-Browser-Use-API-Key": API_KEY } });
+    const payload = await msgResp.json();
+    const msgs = payload.messages || [];
+    allMessages = allMessages.concat(msgs);
+    if (!payload.hasMore || msgs.length === 0) break;
+    cursor = msgs[msgs.length - 1].id;
+  }
 
-  const session = await sessResp.json();
-  const msgPayload = await msgResp.json();
-  const msgs = msgPayload.messages || [];
-
-  const outputStr = typeof session.output === "string" ? session.output : JSON.stringify(session.output || "");
+  // Deep extract GIFT_FOUND from messages
+  const giftFoundEntries: any[] = [];
+  for (let i = 0; i < allMessages.length; i++) {
+    const m = allMessages[i];
+    let dataStr = typeof m.data === "string" ? m.data : JSON.stringify(m.data || "");
+    
+    // Try to parse data as JSON to get nested content
+    try {
+      const parsed = JSON.parse(dataStr);
+      if (parsed.content) {
+        if (Array.isArray(parsed.content)) {
+          for (const c of parsed.content) {
+            const text = c.text || c.content || "";
+            if (text.includes("GIFT_FOUND")) {
+              giftFoundEntries.push({ msgIndex: i, type: m.type, text: text.substring(0, 500) });
+            }
+          }
+        } else if (typeof parsed.content === "string" && parsed.content.includes("GIFT_FOUND")) {
+          giftFoundEntries.push({ msgIndex: i, type: m.type, text: parsed.content.substring(0, 500) });
+        }
+      }
+      // Also check top-level text
+      if (typeof parsed.text === "string" && parsed.text.includes("GIFT_FOUND")) {
+        giftFoundEntries.push({ msgIndex: i, type: m.type, text: parsed.text.substring(0, 500) });
+      }
+    } catch {}
+    
+    // Fallback: check raw string
+    if (dataStr.includes("GIFT_FOUND") && !giftFoundEntries.some(e => e.msgIndex === i)) {
+      giftFoundEntries.push({ msgIndex: i, type: m.type, rawPreview: dataStr.substring(dataStr.indexOf("GIFT_FOUND"), dataStr.indexOf("GIFT_FOUND") + 300) });
+    }
+  }
 
   return new Response(JSON.stringify({
-    sessionStatus: session.status,
-    stepCount: session.stepCount,
-    outputLength: outputStr.length,
-    outputHasGiftFound: outputStr.includes("GIFT_FOUND"),
-    outputFirst500: outputStr.substring(0, 500),
-    outputLast500: outputStr.substring(Math.max(0, outputStr.length - 500)),
-    msgCount: msgs.length,
-    hasMore: msgPayload.hasMore,
-    msgTypes: [...new Set(msgs.map((m: any) => m.type))],
-    firstMsg: msgs[0] ? { type: msgs[0].type, dataLen: msgs[0].data?.length, data: String(msgs[0].data || "").substring(0, 300) } : null,
-    lastMsg: msgs[msgs.length-1] ? { type: msgs[msgs.length-1].type, dataLen: msgs[msgs.length-1].data?.length, data: String(msgs[msgs.length-1].data || "").substring(0, 300) } : null,
-    giftFoundInMsgs: msgs.filter((m: any) => String(m.data || "").includes("GIFT_FOUND")).length,
+    totalMessages: allMessages.length,
+    types: [...new Set(allMessages.map((m: any) => m.type))],
+    typeCounts: allMessages.reduce((acc: any, m: any) => { acc[m.type] = (acc[m.type] || 0) + 1; return acc; }, {}),
+    giftFoundEntries,
   }, null, 2), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 });
